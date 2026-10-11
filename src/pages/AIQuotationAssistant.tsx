@@ -26,6 +26,11 @@ const friendlyError = (message: string) => {
   if (message.includes('STANDARD_SUBSCRIPTION_REQUIRED')) return 'An active Standard subscription is required before using AI quotations.';
   if (message.includes('AI_SUBSCRIPTION_REQUIRED')) return 'Choose an active AI add-on plan before generating a quotation.';
   if (message.includes('AI_CREDITS_EXHAUSTED')) return 'You have no AI credits remaining for this billing period.';
+  if (message.includes('PROVIDER_NOT_CONFIGURED')) return 'AI provider is not configured yet. An admin must set the vision model and enable AI in settings.';
+  if (message.includes('PROVIDER_AUTH_FAILED')) return 'The AI provider rejected the API key. An admin must update the OpenAI API key secret.';
+  if (message.includes('PROVIDER_MODEL_UNAVAILABLE')) return 'The configured vision model is unavailable. An admin must set a valid model ID in settings.';
+  if (message.includes('PROVIDER_BILLING_EXHAUSTED')) return 'The AI provider account has no billing credits remaining. An admin must add credits at platform.openai.com.';
+  if (message.includes('PROVIDER_RATE_LIMITED')) return 'The AI provider is rate-limited right now. Please try again in a few minutes.';
   return message || 'We could not complete this request. Please try again.';
 };
 

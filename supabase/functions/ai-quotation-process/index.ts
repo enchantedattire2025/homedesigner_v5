@@ -114,7 +114,21 @@ Deno.serve(async (req: Request) => {
         },
       }),
     })
-    if (!openAiResponse.ok) throw new Error(openAiResponse.status === 429 ? 'PROVIDER_RATE_LIMITED' : 'PROVIDER_REQUEST_FAILED')
+    if (!openAiResponse.ok) {
+      let providerError: { error?: { type?: string; message?: string } } = {}
+      try { providerError = await openAiResponse.json() } catch { /* non-JSON body */ }
+      const errorType = providerError.error?.type || ''
+      const errorMessage = providerError.error?.message || ''
+      if (openAiResponse.status === 401) throw new Error('PROVIDER_AUTH_FAILED')
+      if (openAiResponse.status === 404) throw new Error('PROVIDER_MODEL_UNAVAILABLE')
+      if (openAiResponse.status === 429) {
+        if (errorType === 'insufficient_quota' || errorMessage.includes('no credits remaining') || errorMessage.includes('billing')) {
+          throw new Error('PROVIDER_BILLING_EXHAUSTED')
+        }
+        throw new Error('PROVIDER_RATE_LIMITED')
+      }
+      throw new Error('PROVIDER_REQUEST_FAILED')
+    }
     const providerResult = await openAiResponse.json()
     const outputText = providerResult.output_text
     if (typeof outputText !== 'string' || !outputText.trim()) throw new Error('INVALID_PROVIDER_RESULT')
@@ -185,15 +199,22 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('ai quotation process failed', error)
     if (jobId && userClient) await refund(userClient, jobId)
+    const code = error instanceof Error ? error.message : 'PROCESSING_FAILED'
+    const userMessage =
+      code === 'PROVIDER_NOT_CONFIGURED' ? 'AI provider is not configured yet. An admin must set the vision model and enable AI in settings.' :
+      code === 'PROVIDER_AUTH_FAILED' ? 'The AI provider rejected the API key. An admin must update the OpenAI API key secret.' :
+      code === 'PROVIDER_MODEL_UNAVAILABLE' ? 'The configured vision model is unavailable. An admin must set a valid model ID in settings.' :
+      code === 'PROVIDER_BILLING_EXHAUSTED' ? 'The AI provider account has no billing credits remaining. An admin must add credits at platform.openai.com.' :
+      code === 'PROVIDER_RATE_LIMITED' ? 'The AI provider is rate-limited right now. Please try again in a few minutes.' :
+      'AI quotation could not be completed. Your credit was returned if it had been reserved.'
     if (jobId) {
       const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
       const supabaseUrl = Deno.env.get('SUPABASE_URL')
       if (serviceKey && supabaseUrl) {
         const adminClient = createClient(supabaseUrl, serviceKey)
-        await adminClient.from('ai_quotation_jobs').update({ status: 'failed', error_code: error instanceof Error ? error.message : 'PROCESSING_FAILED', error_message: 'AI quotation could not be completed.' }).eq('id', jobId)
+        await adminClient.from('ai_quotation_jobs').update({ status: 'failed', error_code: code, error_message: userMessage }).eq('id', jobId)
       }
     }
-    const code = error instanceof Error ? error.message : 'PROCESSING_FAILED'
-    return json({ error: code === 'PROVIDER_NOT_CONFIGURED' ? 'AI provider is not configured yet.' : 'AI quotation could not be completed. Your credit was returned if it had been reserved.' }, 422)
+    return json({ error: userMessage, code }, 422)
   }
 })

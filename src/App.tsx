@@ -45,6 +45,7 @@ const DesignerDashboard = lazy(() => import('./pages/DesignerDashboard'));
 const DesignerMaterialPricing = lazy(() => import('./pages/DesignerMaterialPricing'));
 const DesignerQuotes = lazy(() => import('./pages/DesignerQuotes'));
 const DesignerQuoteGenerator = lazy(() => import('./pages/DesignerQuoteGenerator'));
+const AIQuotationAssistant = lazy(() => import('./pages/AIQuotationAssistant'));
 
 const CustomerQuotes = lazy(() => import('./pages/CustomerQuotes'));
 const QuoteViewer = lazy(() => import('./pages/QuoteViewer'));
@@ -54,6 +55,7 @@ const DesignerSubscription = lazy(() => import('./pages/DesignerSubscription'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminDealsManagement = lazy(() => import('./pages/AdminDealsManagement'));
 const AdminSubscriptionManagement = lazy(() => import('./pages/AdminSubscriptionManagement'));
+const AdminAIQuotationSettings = lazy(() => import('./pages/AdminAIQuotationSettings'));
 const AdminVideoManagement = lazy(() => import('./pages/AdminVideoManagement'));
 const AdminWhatsAppSettings = lazy(() => import('./pages/AdminWhatsAppSettings'));
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
@@ -385,6 +387,15 @@ const [subscriptionManagementLoading, setSubscriptionManagementLoading] = useSta
             />
 
             <Route
+              path="/ai-quotation/:id"
+              element={
+                <ProtectedDesignerRoute>
+                  <AIQuotationAssistant />
+                </ProtectedDesignerRoute>
+              }
+            />
+
+            <Route
               path="/view-quote/:id"
               element={<QuoteViewer />}
             />
@@ -402,6 +413,11 @@ const [subscriptionManagementLoading, setSubscriptionManagementLoading] = useSta
             <Route
               path="/admin/subscriptions"
               element={<AdminSubscriptionManagement />}
+            />
+
+            <Route
+              path="/admin/ai-quotation"
+              element={<AdminAIQuotationSettings />}
             />
 
             <Route

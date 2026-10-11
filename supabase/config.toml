@@ -24,3 +24,12 @@ verify_jwt = true
 
 [functions.send-bill-email]
 verify_jwt = true
+
+[functions.ai-quotation-create]
+verify_jwt = true
+
+[functions.ai-quotation-process]
+verify_jwt = true
+
+[functions.ai-quotation-save-draft]
+verify_jwt = true

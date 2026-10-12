@@ -9,7 +9,6 @@ import {
   FileText,
   CreditCard,
   Sparkles,
-  Wrench,
   Megaphone,
   BarChart3,
   Settings,
@@ -50,7 +49,6 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   {
     title: 'Configuration',
     items: [
-      { label: 'Catalogue & Pricing', icon: Wrench, path: '/admin/catalogue' },
       { label: 'Content & Marketing', icon: Megaphone, path: '/admin/content' },
     ],
   },

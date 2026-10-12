@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Loader2, AlertTriangle, Search, FileText, Eye, X, TrendingUp } from 'lucide-react';
+import { Loader2, AlertTriangle, Search, FileText, Eye, X } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-600',
@@ -26,12 +26,23 @@ const AdminQuotations: React.FC = () => {
         .from('designer_quotes')
         .select(`
           *,
-          designers(name, email),
-          design_projects(project_name)
+          designers(name, email)
         `)
         .order('created_at', { ascending: false });
       if (err) throw err;
-      setQuotes(data || []);
+
+      // Fetch customer/project names separately since project_id references customers
+      const quotesWithProjects = await Promise.all((data || []).map(async (q) => {
+        if (!q.project_id) return { ...q, customers: null };
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('project_name, name, email')
+          .eq('id', q.project_id)
+          .maybeSingle();
+        return { ...q, customers: customer };
+      }));
+
+      setQuotes(quotesWithProjects);
     } catch (e: any) {
       setError(e.message || 'Failed to load quotations');
     } finally {
@@ -47,7 +58,7 @@ const AdminQuotations: React.FC = () => {
     const matchesSearch = !search ||
       q.title?.toLowerCase().includes(search.toLowerCase()) ||
       q.designers?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      q.design_projects?.project_name?.toLowerCase().includes(search.toLowerCase());
+      q.customers?.project_name?.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || q.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -126,7 +137,7 @@ const AdminQuotations: React.FC = () => {
                       <p className="font-medium text-gray-900">{q.title || 'Untitled Quote'}</p>
                     </td>
                     <td className="px-5 py-3 text-gray-600 hidden md:table-cell">{q.designers?.name || '—'}</td>
-                    <td className="px-5 py-3 text-gray-600 hidden lg:table-cell">{q.design_projects?.project_name || '—'}</td>
+                    <td className="px-5 py-3 text-gray-600 hidden lg:table-cell">{q.customers?.project_name || '—'}</td>
                     <td className="px-5 py-3 font-medium text-gray-900">
                       {q.total_amount ? `₹${Number(q.total_amount).toLocaleString('en-IN')}` : '—'}
                     </td>
@@ -165,7 +176,8 @@ const AdminQuotations: React.FC = () => {
                 ['Title', selectedQuote.title],
                 ['Designer', selectedQuote.designers?.name],
                 ['Designer Email', selectedQuote.designers?.email],
-                ['Project', selectedQuote.design_projects?.project_name],
+                ['Project', selectedQuote.customers?.project_name],
+                ['Homeowner', selectedQuote.customers?.name],
                 ['Status', selectedQuote.status],
                 ['Total Amount', selectedQuote.total_amount ? `₹${Number(selectedQuote.total_amount).toLocaleString('en-IN')}` : null],
                 ['Tax', selectedQuote.tax_amount ? `₹${Number(selectedQuote.tax_amount).toLocaleString('en-IN')}` : null],

@@ -63,7 +63,7 @@ const AdminOverview: React.FC = () => {
       ] = await Promise.all([
         supabase.from('designers').select('id, verification_status, created_at'),
         supabase.from('customers').select('id, status, created_at'),
-        supabase.from('design_projects').select('id, status, created_at, project_name, designers(name)'),
+        supabase.from('customers').select('id, status, created_at, project_name, name, email'),
         supabase.from('designer_quotes').select('id, status, created_at'),
         supabase.from('designer_subscriptions').select('id, status, end_date'),
         supabase.from('designer_ai_subscriptions').select('id, status, end_date'),
@@ -113,7 +113,7 @@ const AdminOverview: React.FC = () => {
       });
 
       setRecentDesigners(designers.slice(0, 5));
-      setRecentProjects(projects.slice(0, 5));
+      setRecentProjects(projects.slice(0, 5).map((p: any) => ({ ...p, designers: { name: p.name } })));
     } catch (err: any) {
       setData(prev => ({ ...prev, loading: false, error: err.message || 'Failed to load overview data' }));
     }

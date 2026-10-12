@@ -68,7 +68,6 @@ const AdminProjects = lazy(() => import('./pages/admin/AdminProjects'));
 const AdminQuotations = lazy(() => import('./pages/admin/AdminQuotations'));
 const AdminSubscriptions = lazy(() => import('./pages/admin/AdminSubscriptions'));
 const AdminAIMonitoring = lazy(() => import('./pages/admin/AdminAIMonitoring'));
-const AdminCatalogue = lazy(() => import('./pages/admin/AdminCatalogue'));
 const AdminContentMarketing = lazy(() => import('./pages/admin/AdminContentMarketing'));
 const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics'));
 const AdminPlatformSettings = lazy(() => import('./pages/admin/AdminPlatformSettings'));
@@ -432,7 +431,6 @@ const [subscriptionManagementLoading, setSubscriptionManagementLoading] = useSta
             <Route path="/admin/quotations" element={<AdminRoute><AdminQuotations /></AdminRoute>} />
             <Route path="/admin/subscriptions" element={<AdminRoute><AdminSubscriptions /></AdminRoute>} />
             <Route path="/admin/ai-monitoring" element={<AdminRoute><AdminAIMonitoring /></AdminRoute>} />
-            <Route path="/admin/catalogue" element={<AdminRoute><AdminCatalogue /></AdminRoute>} />
             <Route path="/admin/content" element={<AdminRoute><AdminContentMarketing /></AdminRoute>} />
             <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
             <Route path="/admin/settings" element={<AdminRoute><AdminPlatformSettings /></AdminRoute>} />

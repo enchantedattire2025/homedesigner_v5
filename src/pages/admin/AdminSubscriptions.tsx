@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   Loader2, AlertTriangle, Search, CreditCard, Sparkles,
-  CheckCircle, XCircle, Clock, DollarSign, Edit3, Save, X
+  CheckCircle, XCircle, DollarSign, Edit3, Save, X
 } from 'lucide-react';
 
 interface Plan {
@@ -19,7 +19,7 @@ interface Plan {
   sort_order: number;
 }
 
-type Tab = 'subscriptions' | 'plans' | 'ai_plans' | 'payments';
+type Tab = 'subscriptions' | 'ai_plans' | 'plans' | 'payments';
 
 const AdminSubscriptions: React.FC = () => {
   const [tab, setTab] = useState<Tab>('subscriptions');
@@ -40,21 +40,51 @@ const AdminSubscriptions: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [subsRes, aiSubsRes, paymentsRes, plansRes, aiPlansRes] = await Promise.all([
-        supabase.from('designer_subscriptions').select('*, designers(name, email), subscription_plans(name, price, billing_period)').order('created_at', { ascending: false }),
-        supabase.from('designer_ai_subscriptions').select('*, designers(name, email), ai_subscription_plans(name, price, monthly_credits)').order('created_at', { ascending: false }),
-        supabase.from('subscription_payments').select('*, designers(name, email)').order('created_at', { ascending: false }),
-        supabase.from('subscription_plans').select('*').order('sort_order'),
-        supabase.from('ai_subscription_plans').select('*').order('sort_order'),
-      ]);
+      // designer_subscriptions has FK to designers and subscription_plans
+      const subsRes = await supabase
+        .from('designer_subscriptions')
+        .select('*, designers(name, email), subscription_plans(name, price, billing_period)')
+        .order('created_at', { ascending: false });
+
+      // designer_ai_subscriptions has FK to designers and ai_subscription_plans (via ai_plan_id)
+      const aiSubsRes = await supabase
+        .from('designer_ai_subscriptions')
+        .select('*, designers(name, email), ai_subscription_plans(name, price, monthly_credits)')
+        .order('created_at', { ascending: false });
+
+      // subscription_payments links to designer_subscriptions, not designers directly
+      const paymentsRes = await supabase
+        .from('subscription_payments')
+        .select('*, designer_subscriptions(designer_id)')
+        .order('payment_date', { ascending: false });
+
+      const plansRes = await supabase.from('subscription_plans').select('*').order('sort_order');
+      const aiPlansRes = await supabase.from('ai_subscription_plans').select('*').order('sort_order');
+
       if (subsRes.error) throw subsRes.error;
       if (aiSubsRes.error) throw aiSubsRes.error;
       if (paymentsRes.error) throw paymentsRes.error;
       if (plansRes.error) throw plansRes.error;
       if (aiPlansRes.error) throw aiPlansRes.error;
+
+      // Enrich payments with designer info via the subscription's designer_id
+      const designerIds = new Set((paymentsRes.data || []).map((p: any) => p.designer_subscriptions?.designer_id).filter(Boolean));
+      const designerMap: Record<string, any> = {};
+      if (designerIds.size > 0) {
+        const { data: designerData } = await supabase
+          .from('designers')
+          .select('id, name, email')
+          .in('id', Array.from(designerIds));
+        (designerData || []).forEach((d: any) => { designerMap[d.id] = d; });
+      }
+      const enrichedPayments = (paymentsRes.data || []).map((p: any) => ({
+        ...p,
+        designers: designerMap[p.designer_subscriptions?.designer_id] || null,
+      }));
+
       setSubscriptions(subsRes.data || []);
       setAiSubscriptions(aiSubsRes.data || []);
-      setPayments(paymentsRes.data || []);
+      setPayments(enrichedPayments);
       setPlans(plansRes.data || []);
       setAiPlans(aiPlansRes.data || []);
     } catch (e: any) {
@@ -86,7 +116,7 @@ const AdminSubscriptions: React.FC = () => {
     }
   };
 
-  const filteredSubs = subscriptions.filter(s => {
+  const filteredSubs = subscriptions.filter((s: any) => {
     const matchesSearch = !search ||
       s.designers?.name?.toLowerCase().includes(search.toLowerCase()) ||
       s.designers?.email?.toLowerCase().includes(search.toLowerCase());
@@ -104,10 +134,10 @@ const AdminSubscriptions: React.FC = () => {
     </div></div>
   );
 
-  const activeSubs = subscriptions.filter(s => s.status === 'active').length;
-  const activeAISubs = aiSubscriptions.filter(s => s.status === 'active').length;
-  const totalRevenue = payments.filter(p => p.status === 'success' || p.status === 'paid' || p.status === 'completed').reduce((sum, p) => sum + Number(p.amount || 0), 0);
-  const failedPayments = payments.filter(p => p.status === 'failed' || p.status === 'cancelled').length;
+  const activeSubs = subscriptions.filter((s: any) => s.status === 'active').length;
+  const activeAISubs = aiSubscriptions.filter((s: any) => s.status === 'active').length;
+  const totalRevenue = payments.filter((p: any) => p.payment_status === 'success' || p.payment_status === 'paid' || p.payment_status === 'completed').reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+  const failedPayments = payments.filter((p: any) => p.payment_status === 'failed' || p.payment_status === 'cancelled').length;
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
@@ -138,7 +168,7 @@ const AdminSubscriptions: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-gray-200">
+      <div className="flex gap-1 mb-6 border-b border-gray-200 overflow-x-auto">
         {([
           ['subscriptions', 'Standard Subscriptions'],
           ['ai_plans', 'AI Add-on Subscriptions'],
@@ -146,7 +176,7 @@ const AdminSubscriptions: React.FC = () => {
           ['payments', 'Payment History'],
         ] as [Tab, string][]).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               tab === key ? 'border-sky-600 text-sky-600' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}>
             {label}
@@ -185,7 +215,7 @@ const AdminSubscriptions: React.FC = () => {
                   <th className="text-left px-5 py-3 font-semibold text-gray-600 hidden md:table-cell">Amount</th>
                 </tr></thead>
                 <tbody>
-                  {filteredSubs.map(s => (
+                  {filteredSubs.map((s: any) => (
                     <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/30">
                       <td className="px-5 py-3"><p className="font-medium text-gray-900">{s.designers?.name || '—'}</p><p className="text-xs text-gray-500">{s.designers?.email}</p></td>
                       <td className="px-5 py-3">{s.subscription_plans?.name || '—'}<p className="text-xs text-gray-500">{s.subscription_plans?.billing_period}</p></td>
@@ -197,7 +227,7 @@ const AdminSubscriptions: React.FC = () => {
                           'bg-gray-100 text-gray-600'
                         }`}>{s.status}</span>
                       </td>
-                      <td className="px-5 py-3 text-gray-500 hidden sm:table-cell text-xs">{s.end_date ? new Date(s.end_date).toLocaleDateString('en-IN') : '—'}</td>
+                      <td className="px-5 py-3 text-gray-500 hidden sm:table-cell text-xs">{s.subscription_end_date ? new Date(s.subscription_end_date).toLocaleDateString('en-IN') : '—'}</td>
                       <td className="px-5 py-3 text-gray-600 hidden md:table-cell">{s.subscription_plans?.price ? `₹${Number(s.subscription_plans.price).toLocaleString('en-IN')}` : '—'}</td>
                     </tr>
                   ))}
@@ -223,7 +253,7 @@ const AdminSubscriptions: React.FC = () => {
                 <th className="text-left px-5 py-3 font-semibold text-gray-600 hidden sm:table-cell">End Date</th>
               </tr></thead>
               <tbody>
-                {aiSubscriptions.map(s => (
+                {aiSubscriptions.map((s: any) => (
                   <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/30">
                     <td className="px-5 py-3"><p className="font-medium text-gray-900">{s.designers?.name || '—'}</p><p className="text-xs text-gray-500">{s.designers?.email}</p></td>
                     <td className="px-5 py-3">{s.ai_subscription_plans?.name || '—'}</td>
@@ -233,7 +263,7 @@ const AdminSubscriptions: React.FC = () => {
                         s.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-600'
                       }`}>{s.status}</span>
                     </td>
-                    <td className="px-5 py-3 text-gray-500 hidden sm:table-cell text-xs">{s.end_date ? new Date(s.end_date).toLocaleDateString('en-IN') : '—'}</td>
+                    <td className="px-5 py-3 text-gray-500 hidden sm:table-cell text-xs">{s.subscription_end_date ? new Date(s.subscription_end_date).toLocaleDateString('en-IN') : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -245,7 +275,6 @@ const AdminSubscriptions: React.FC = () => {
       {/* Plan configuration tab */}
       {tab === 'plans' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Standard plans */}
           <div>
             <h3 className="font-semibold text-gray-900 text-sm mb-4 flex items-center gap-2"><CreditCard className="w-4 h-4 text-sky-600" /> Standard Plans</h3>
             <div className="space-y-4">
@@ -274,7 +303,6 @@ const AdminSubscriptions: React.FC = () => {
             </div>
           </div>
 
-          {/* AI plans */}
           <div>
             <h3 className="font-semibold text-gray-900 text-sm mb-4 flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-600" /> AI Add-on Plans</h3>
             <div className="space-y-4">
@@ -313,21 +341,23 @@ const AdminSubscriptions: React.FC = () => {
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Designer</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Amount</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Status</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600 hidden sm:table-cell">Method</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600 hidden sm:table-cell">Date</th>
               </tr></thead>
               <tbody>
-                {payments.map(p => (
+                {payments.map((p: any) => (
                   <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/30">
                     <td className="px-5 py-3"><p className="font-medium text-gray-900">{p.designers?.name || '—'}</p><p className="text-xs text-gray-500">{p.designers?.email}</p></td>
                     <td className="px-5 py-3 font-medium text-gray-900">₹{Number(p.amount || 0).toLocaleString('en-IN')}</td>
                     <td className="px-5 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        p.status === 'success' || p.status === 'paid' || p.status === 'completed' ? 'bg-green-50 text-green-600' :
-                        p.status === 'failed' || p.status === 'cancelled' ? 'bg-red-50 text-red-600' :
+                        p.payment_status === 'success' || p.payment_status === 'paid' || p.payment_status === 'completed' ? 'bg-green-50 text-green-600' :
+                        p.payment_status === 'failed' || p.payment_status === 'cancelled' ? 'bg-red-50 text-red-600' :
                         'bg-amber-50 text-amber-600'
-                      }`}>{p.status}</span>
+                      }`}>{p.payment_status}</span>
                     </td>
-                    <td className="px-5 py-3 text-gray-500 hidden sm:table-cell text-xs">{p.created_at ? new Date(p.created_at).toLocaleDateString('en-IN') : '—'}</td>
+                    <td className="px-5 py-3 text-gray-600 hidden sm:table-cell">{p.payment_method || '—'}</td>
+                    <td className="px-5 py-3 text-gray-500 hidden sm:table-cell text-xs">{p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-IN') : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -339,7 +369,6 @@ const AdminSubscriptions: React.FC = () => {
   );
 };
 
-// Plan editor sub-component
 const PlanEditor: React.FC<{
   plan: Plan;
   onChange: (p: Plan) => void;

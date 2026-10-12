@@ -25,8 +25,8 @@ const AdminAIMonitoring: React.FC = () => {
     setError(null);
     try {
       const [jobsRes, periodsRes, ledgerRes, configRes] = await Promise.all([
-        supabase.from('ai_quotation_jobs').select('*, designers(name, email), design_projects(project_name)').order('created_at', { ascending: false }).limit(100),
-        supabase.from('ai_credit_periods').select('*, designers(name, email), ai_subscription_plans(name)').order('created_at', { ascending: false }),
+        supabase.from('ai_quotation_jobs').select('*, designers(name, email)').order('created_at', { ascending: false }).limit(100),
+        supabase.from('ai_credit_periods').select('*, designers(name, email)').order('created_at', { ascending: false }),
         supabase.from('ai_credit_ledger').select('*, designers(name, email)').order('created_at', { ascending: false }).limit(100),
         supabase.from('ai_configuration').select('*').eq('id', true).maybeSingle(),
       ]);
@@ -34,7 +34,33 @@ const AdminAIMonitoring: React.FC = () => {
       if (periodsRes.error) throw periodsRes.error;
       if (ledgerRes.error) throw ledgerRes.error;
       if (configRes.error) throw configRes.error;
-      setJobs(jobsRes.data || []);
+
+      // Enrich jobs with customer project names (project_id references customers)
+      const jobCustomerIds = new Set((jobsRes.data || []).map((j: any) => j.project_id).filter(Boolean));
+      const customerMap: Record<string, any> = {};
+      if (jobCustomerIds.size > 0) {
+        const { data: customerData } = await supabase.from('customers').select('id, project_name, name').in('id', Array.from(jobCustomerIds));
+        (customerData || []).forEach((c: any) => { customerMap[c.id] = c; });
+      }
+      const enrichedJobs = (jobsRes.data || []).map((j: any) => ({ ...j, customers: customerMap[j.project_id] || null }));
+
+      // Enrich credit periods with AI plan names (ai_subscription_id references designer_ai_subscriptions)
+      const subIds = new Set((periodsRes.data || []).map((p: any) => p.ai_subscription_id).filter(Boolean));
+      const planMap: Record<string, string> = {};
+      if (subIds.size > 0) {
+        const { data: aiSubs } = await supabase.from('designer_ai_subscriptions').select('id, ai_plan_id').in('id', Array.from(subIds));
+        const planIds = new Set((aiSubs || []).map((s: any) => s.ai_plan_id).filter(Boolean));
+        if (planIds.size > 0) {
+          const { data: plans } = await supabase.from('ai_subscription_plans').select('id, name').in('id', Array.from(planIds));
+          (plans || []).forEach((p: any) => { planMap[p.id] = p.name; });
+        }
+        (aiSubs || []).forEach((s: any) => { 
+          const period = (periodsRes.data || []).find((p: any) => p.ai_subscription_id === s.id);
+          if (period) period._plan_name = planMap[s.ai_plan_id] || '—';
+        });
+      }
+
+      setJobs(enrichedJobs);
       setCreditPeriods(periodsRes.data || []);
       setLedger(ledgerRes.data || []);
       setConfig(configRes.data);
@@ -136,7 +162,7 @@ const AdminAIMonitoring: React.FC = () => {
               <div className="space-y-3">
                 {jobs.slice(0, 8).map(j => (
                   <div key={j.id} className="flex items-center justify-between">
-                    <div className="min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{j.designers?.name || '—'}</p><p className="text-xs text-gray-500">{j.design_projects?.project_name || '—'}</p></div>
+                    <div className="min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{j.designers?.name || '—'}</p><p className="text-xs text-gray-500">{j.customers?.project_name || '—'}</p></div>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
                       j.status === 'completed' || j.status === 'processed' ? 'bg-green-50 text-green-600' :
                       j.status === 'failed' ? 'bg-red-50 text-red-600' :
@@ -195,13 +221,13 @@ const AdminAIMonitoring: React.FC = () => {
                 </tr></thead>
                 <tbody>
                   {jobs.filter(j => {
-                    const ms = !search || j.designers?.name?.toLowerCase().includes(search.toLowerCase()) || j.design_projects?.project_name?.toLowerCase().includes(search.toLowerCase());
+                    const ms = !search || j.designers?.name?.toLowerCase().includes(search.toLowerCase()) || j.customers?.project_name?.toLowerCase().includes(search.toLowerCase());
                     const mf = statusFilter === 'all' || j.status === statusFilter;
                     return ms && mf;
                   }).map(j => (
                     <tr key={j.id} className="border-b border-gray-50 hover:bg-gray-50/30">
                       <td className="px-5 py-3"><p className="font-medium text-gray-900">{j.designers?.name || '—'}</p></td>
-                      <td className="px-5 py-3 text-gray-600 hidden md:table-cell">{j.design_projects?.project_name || '—'}</td>
+                      <td className="px-5 py-3 text-gray-600 hidden md:table-cell">{j.customers?.project_name || '—'}</td>
                       <td className="px-5 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         j.status === 'completed' || j.status === 'processed' ? 'bg-green-50 text-green-600' :
                         j.status === 'failed' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
@@ -222,7 +248,7 @@ const AdminAIMonitoring: React.FC = () => {
                   <button onClick={() => setSelectedJob(null)} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5 text-gray-500" /></button>
                 </div>
                 <div className="p-5 space-y-3 text-sm">
-                  {[['Designer', selectedJob.designers?.name], ['Project', selectedJob.design_projects?.project_name],
+                  {[['Designer', selectedJob.designers?.name], ['Project', selectedJob.customers?.project_name],
                     ['Status', selectedJob.status], ['Error', selectedJob.error_message],
                     ['Created', selectedJob.created_at ? new Date(selectedJob.created_at).toLocaleString('en-IN') : null],
                     ['Updated', selectedJob.updated_at ? new Date(selectedJob.updated_at).toLocaleString('en-IN') : null]
@@ -255,7 +281,7 @@ const AdminAIMonitoring: React.FC = () => {
                   return (
                     <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/30">
                       <td className="px-5 py-3"><p className="font-medium text-gray-900">{p.designers?.name || '—'}</p></td>
-                      <td className="px-5 py-3 text-gray-600">{p.ai_subscription_plans?.name || '—'}</td>
+                      <td className="px-5 py-3 text-gray-600">{p._plan_name || '—'}</td>
                       <td className="px-5 py-3 text-gray-600">{p.credits_granted}</td>
                       <td className="px-5 py-3 text-gray-600">{p.credits_consumed}</td>
                       <td className="px-5 py-3"><span className={`font-medium ${remaining > 0 ? 'text-green-600' : 'text-gray-400'}`}>{remaining}</span></td>

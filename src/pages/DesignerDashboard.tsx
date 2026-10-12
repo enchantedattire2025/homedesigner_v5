@@ -22,7 +22,8 @@ import {
   LineChart as LineChartIcon,
   Box,
   User,
-  Receipt
+  Receipt,
+  Sparkles
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -510,7 +511,7 @@ const DesignerDashboard = () => {
   useEffect(() => {
     const interval = window.setInterval(() => {
       fetchSubscriptionManagementState();
-    }, 5000);
+    }, 60000);
 
     return () => window.clearInterval(interval);
   }, [designer?.id]);
@@ -940,6 +941,14 @@ const DesignerDashboard = () => {
                   Manage Subscription
                 </button>
               )}
+              {subscriptionManagementEnabled && !subscriptionManagementLoading && (
+                <button
+                  onClick={() => navigate('/designer-ai-subscription')}
+                  className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  AI Plans
+                </button>
+              )}
               <button
                 onClick={() => navigate('/customer-projects')}
                 className="btn-secondary"
@@ -1179,6 +1188,13 @@ const DesignerDashboard = () => {
                 >
                   <Receipt className="w-5 h-5 text-primary-600" />
                   <span className="font-medium text-gray-700">Bills Dashboard</span>
+                </button>
+                <button
+                  onClick={() => navigate('/designer-ai-subscription')}
+                  className="w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors flex items-center space-x-3"
+                >
+                  <Sparkles className="w-5 h-5 text-primary-600" />
+                  <span className="font-medium text-gray-700">AI Quotation Plans</span>
                 </button>
               </div>
 

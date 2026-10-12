@@ -51,6 +51,7 @@ const CustomerQuotes = lazy(() => import('./pages/CustomerQuotes'));
 const QuoteViewer = lazy(() => import('./pages/QuoteViewer'));
 
 const DesignerSubscription = lazy(() => import('./pages/DesignerSubscription'));
+const DesignerAISubscription = lazy(() => import('./pages/DesignerAISubscription'));
 
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminDealsManagement = lazy(() => import('./pages/AdminDealsManagement'));
@@ -196,10 +197,9 @@ const [subscriptionManagementLoading, setSubscriptionManagementLoading] = useSta
 
   fetchSubscriptionManagementSetting();
 
-  // Keep the global popup in sync if Admin changes the setting.
   const interval = window.setInterval(() => {
     fetchSubscriptionManagementSetting();
-  }, 5000);
+  }, 60000);
 
   return () => window.clearInterval(interval);
 }, []);
@@ -214,7 +214,8 @@ const [subscriptionManagementLoading, setSubscriptionManagementLoading] = useSta
    * Otherwise the expired popup would cover the Renew page itself.
    */
   const isSubscriptionPage =
-    location.pathname === '/designer-subscription';
+    location.pathname === '/designer-subscription' ||
+    location.pathname === '/designer-ai-subscription';
 
   /*
    * Show the expired popup only when:
@@ -373,6 +374,15 @@ const [subscriptionManagementLoading, setSubscriptionManagementLoading] = useSta
               element={
                 <ProtectedDesignerRoute>
                   <DesignerSubscription />
+                </ProtectedDesignerRoute>
+              }
+            />
+
+            <Route
+              path="/designer-ai-subscription"
+              element={
+                <ProtectedDesignerRoute>
+                  <DesignerAISubscription />
                 </ProtectedDesignerRoute>
               }
             />

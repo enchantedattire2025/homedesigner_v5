@@ -53,13 +53,27 @@ const QuoteViewer = lazy(() => import('./pages/QuoteViewer'));
 const DesignerSubscription = lazy(() => import('./pages/DesignerSubscription'));
 const DesignerAISubscription = lazy(() => import('./pages/DesignerAISubscription'));
 
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const AdminDealsManagement = lazy(() => import('./pages/AdminDealsManagement'));
-const AdminSubscriptionManagement = lazy(() => import('./pages/AdminSubscriptionManagement'));
-const AdminAIQuotationSettings = lazy(() => import('./pages/AdminAIQuotationSettings'));
 const AdminVideoManagement = lazy(() => import('./pages/AdminVideoManagement'));
 const AdminWhatsAppSettings = lazy(() => import('./pages/AdminWhatsAppSettings'));
-const AdminLogin = lazy(() => import('./pages/AdminLogin'));
+
+// New admin pages
+const AdminRoute = lazy(() => import('./components/AdminRoute'));
+const AdminOverview = lazy(() => import('./pages/admin/AdminOverview'));
+const AdminUsersVerification = lazy(() => import('./pages/admin/AdminUsersVerification'));
+const AdminDesigners = lazy(() => import('./pages/admin/AdminDesigners'));
+const AdminHomeowners = lazy(() => import('./pages/admin/AdminHomeowners'));
+const AdminProjects = lazy(() => import('./pages/admin/AdminProjects'));
+const AdminQuotations = lazy(() => import('./pages/admin/AdminQuotations'));
+const AdminSubscriptions = lazy(() => import('./pages/admin/AdminSubscriptions'));
+const AdminAIMonitoring = lazy(() => import('./pages/admin/AdminAIMonitoring'));
+const AdminCatalogue = lazy(() => import('./pages/admin/AdminCatalogue'));
+const AdminContentMarketing = lazy(() => import('./pages/admin/AdminContentMarketing'));
+const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics'));
+const AdminPlatformSettings = lazy(() => import('./pages/admin/AdminPlatformSettings'));
+const AdminIntegrations = lazy(() => import('./pages/admin/AdminIntegrations'));
+const AdminAuditLogs = lazy(() => import('./pages/admin/AdminAuditLogs'));
 
 const DebugPage = lazy(() => import('./pages/DebugPage'));
 const DebugDesignerProfile = lazy(() => import('./pages/DebugDesignerProfile'));
@@ -72,7 +86,6 @@ const WallpaperOrder = lazy(() => import('./pages/WallpaperOrder'));
 const WallpaperGallery = lazy(() => import('./pages/WallpaperGallery'));
 const AdminWallpaperOrders = lazy(() => import('./pages/AdminWallpaperOrders'));
 const Admin3DWallpapers = lazy(() => import('./pages/Admin3DWallpapers'));
-const AdminAuthDebug = lazy(() => import('./pages/AdminAuthDebug'));
 const My3DWallpaperOrders = lazy(() => import('./pages/My3DWallpaperOrders'));
 
 const DesignerBilling = lazy(() => import('./pages/DesignerBilling'));
@@ -410,50 +423,28 @@ const [subscriptionManagementLoading, setSubscriptionManagementLoading] = useSta
               element={<QuoteViewer />}
             />
 
-            <Route
-              path="/admin"
-              element={<AdminDashboard />}
-            />
+            {/* Admin routes — all wrapped with AdminRoute (auth guard + layout) */}
+            <Route path="/admin" element={<AdminRoute><AdminOverview /></AdminRoute>} />
+            <Route path="/admin/users" element={<AdminRoute><AdminUsersVerification /></AdminRoute>} />
+            <Route path="/admin/designers" element={<AdminRoute><AdminDesigners /></AdminRoute>} />
+            <Route path="/admin/homeowners" element={<AdminRoute><AdminHomeowners /></AdminRoute>} />
+            <Route path="/admin/projects" element={<AdminRoute><AdminProjects /></AdminRoute>} />
+            <Route path="/admin/quotations" element={<AdminRoute><AdminQuotations /></AdminRoute>} />
+            <Route path="/admin/subscriptions" element={<AdminRoute><AdminSubscriptions /></AdminRoute>} />
+            <Route path="/admin/ai-monitoring" element={<AdminRoute><AdminAIMonitoring /></AdminRoute>} />
+            <Route path="/admin/catalogue" element={<AdminRoute><AdminCatalogue /></AdminRoute>} />
+            <Route path="/admin/content" element={<AdminRoute><AdminContentMarketing /></AdminRoute>} />
+            <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
+            <Route path="/admin/settings" element={<AdminRoute><AdminPlatformSettings /></AdminRoute>} />
+            <Route path="/admin/integrations" element={<AdminRoute><AdminIntegrations /></AdminRoute>} />
+            <Route path="/admin/audit-logs" element={<AdminRoute><AdminAuditLogs /></AdminRoute>} />
 
-            <Route
-              path="/admin/deals"
-              element={<AdminDealsManagement />}
-            />
-
-            <Route
-              path="/admin/subscriptions"
-              element={<AdminSubscriptionManagement />}
-            />
-
-            <Route
-              path="/admin/ai-quotation"
-              element={<AdminAIQuotationSettings />}
-            />
-
-            <Route
-              path="/admin/video"
-              element={<AdminVideoManagement />}
-            />
-
-            <Route
-              path="/admin/whatsapp"
-              element={<AdminWhatsAppSettings />}
-            />
-
-            <Route
-              path="/admin/wallpaper-orders"
-              element={<AdminWallpaperOrders />}
-            />
-
-            <Route
-              path="/admin/3d-wallpapers"
-              element={<Admin3DWallpapers />}
-            />
-
-            <Route
-              path="/admin/auth-debug"
-              element={<AdminAuthDebug />}
-            />
+            {/* Legacy sub-pages — also wrapped with AdminRoute */}
+            <Route path="/admin/deals" element={<AdminRoute><AdminDealsManagement /></AdminRoute>} />
+            <Route path="/admin/video" element={<AdminRoute><AdminVideoManagement /></AdminRoute>} />
+            <Route path="/admin/whatsapp" element={<AdminRoute><AdminWhatsAppSettings /></AdminRoute>} />
+            <Route path="/admin/wallpaper-orders" element={<AdminRoute><AdminWallpaperOrders /></AdminRoute>} />
+            <Route path="/admin/3d-wallpapers" element={<AdminRoute><Admin3DWallpapers /></AdminRoute>} />
 
             <Route
               path="/admin-login"

@@ -23,6 +23,7 @@ const statuses: { key: JobStatus; label: string; detail: string }[] = [
 ];
 
 const friendlyError = (message: string) => {
+  if (message.includes('Edge Function returned a non-2xx status code')) return 'The AI quotation service encountered an error. Please try again or contact support if it persists.';
   if (message.includes('STANDARD_SUBSCRIPTION_REQUIRED')) return 'An active Standard subscription is required before using AI quotations.';
   if (message.includes('AI_SUBSCRIPTION_REQUIRED')) return 'Choose an active AI add-on plan before generating a quotation.';
   if (message.includes('AI_CREDITS_EXHAUSTED')) return 'You have no AI credits remaining for this billing period.';
@@ -133,9 +134,10 @@ const AIQuotationAssistant = () => {
     setError(null); setSuccess(null); setStage(3); setIsProcessing(true);
     try {
       const { data: created, error: createError } = await supabase.functions.invoke('ai-quotation-create', { body: { projectId, sourceFilePath: uploadPath, sourceFileType: file?.type, sourceFileSize: file?.size, requirementsText: requirements.trim(), pricingProfile } });
-      if (createError || !created?.jobId) throw new Error(friendlyError(createError?.message || created?.error || 'Could not start generation.'));
+      if (createError || !created?.jobId) throw new Error(friendlyError(created?.error || createError?.message || 'Could not start generation.'));
       setJob({ id: created.jobId, source_file_path: uploadPath, source_file_type: file?.type || '', source_file_size: file?.size || 0, status: 'queued', error_message: null, assumptions: [] });
-      void supabase.functions.invoke('ai-quotation-process', { body: { jobId: created.jobId } });
+      const { data: processData, error: processError } = await supabase.functions.invoke('ai-quotation-process', { body: { jobId: created.jobId } });
+      if (processError) throw new Error(friendlyError(processData?.error || processError.message));
       await pollJob(created.jobId);
     } catch (caught) { setError(friendlyError(caught instanceof Error ? caught.message : 'AI quotation generation failed.')); setIsProcessing(false); }
   };
@@ -157,7 +159,7 @@ const AIQuotationAssistant = () => {
     try {
       const body = { jobId: job.id, title, status, taxRate, discountAmount: discount, description: requirements, notes: (job.assumptions || []).join('\n'), items: items.map(item => ({ roomName: rooms.find(room => room.id === item.room_id)?.name || 'On-Site Work', materialId: item.material_id, itemType: item.item_type, name: item.name, description: item.description, quantity: item.quantity, unit: item.unit, numberOfUnits: item.number_of_units, unitPrice: item.unit_price, discountPercent: item.discount_percent, width: item.width, height: item.height, depth: item.depth })) };
       const { data, error: saveError } = await supabase.functions.invoke('ai-quotation-save-draft', { body });
-      if (saveError || !data?.quoteId) throw new Error(saveError?.message || data?.error || 'Could not save quotation.');
+      if (saveError || !data?.quoteId) throw new Error(data?.error || saveError?.message || 'Could not save quotation.');
       setSuccess(status === 'sent' ? 'Quotation sent to homeowner.' : 'Quotation saved as draft.');
       window.setTimeout(() => navigate('/designer-quotes'), 900);
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not save quotation.'); }

@@ -24,7 +24,7 @@ interface WallpaperCardProps {
   onOrder: (wallpaper: Wallpaper) => void;
 }
 
-const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, onOrder }) => {
+const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder }) => {
   const images = [wallpaper.image_url, wallpaper.second_image_url].filter(
     (url): url is string => !!url && url.trim() !== ''
   );

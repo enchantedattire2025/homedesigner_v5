@@ -1,0 +1,65 @@
+-- Fix wallpapers_3d RLS policies: all CRUD policies were wiped during fresh-start migrations
+-- Only a broken SELECT policy remained (hardcoded to one user's email, no INSERT/UPDATE/DELETE at all)
+
+-- Drop the broken policy
+DROP POLICY IF EXISTS "Somnath can view active wallpapers" ON wallpapers_3d;
+DROP POLICY IF EXISTS "Anyone can view active wallpapers" ON wallpapers_3d;
+DROP POLICY IF EXISTS "Admins can view all wallpapers" ON wallpapers_3d;
+DROP POLICY IF EXISTS "Admins can insert wallpapers" ON wallpapers_3d;
+DROP POLICY IF EXISTS "Admins can update wallpapers" ON wallpapers_3d;
+DROP POLICY IF EXISTS "Admins can delete wallpapers" ON wallpapers_3d;
+
+-- Public can view active wallpapers (gallery is public, no login required)
+CREATE POLICY "Anyone can view active wallpapers"
+  ON wallpapers_3d FOR SELECT
+  USING (is_active = true);
+
+-- Admins can view all wallpapers (active and inactive)
+CREATE POLICY "Admins can view all wallpapers"
+  ON wallpapers_3d FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM admin_users
+      WHERE admin_users.user_id = auth.uid()
+    )
+  );
+
+-- Admins can insert wallpapers
+CREATE POLICY "Admins can insert wallpapers"
+  ON wallpapers_3d FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM admin_users
+      WHERE admin_users.user_id = auth.uid()
+    )
+  );
+
+-- Admins can update wallpapers
+CREATE POLICY "Admins can update wallpapers"
+  ON wallpapers_3d FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM admin_users
+      WHERE admin_users.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM admin_users
+      WHERE admin_users.user_id = auth.uid()
+    )
+  );
+
+-- Admins can delete wallpapers
+CREATE POLICY "Admins can delete wallpapers"
+  ON wallpapers_3d FOR DELETE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM admin_users
+      WHERE admin_users.user_id = auth.uid()
+    )
+  );

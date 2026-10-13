@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, LogIn, Loader2, Search, Sparkles, Palette } from 'lucide-react';
+import { ShoppingCart, LogIn, Loader2, Search, Sparkles, Palette, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import AuthModal from '../components/AuthModal';
 import { supabase } from '../lib/supabase';
@@ -8,10 +8,150 @@ import { supabase } from '../lib/supabase';
 interface Wallpaper {
   id: string;
   image_url: string;
+  second_image_url: string | null;
   category: string;
 }
 
 const CATEGORIES = ["All", "Geometric", "Nature", "Luxury", "Modern", "Floral", "Industrial", "Texture", "Abstract", "Wood", "Zen", "Space", "Urban"];
+
+const PLACEHOLDER_SVG = 'data:image/svg+xml;base64,' + btoa(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400"><rect width="300" height="400" fill="#f3f4f6"/><text x="150" y="200" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#9ca3af">Image unavailable</text></svg>'
+);
+
+interface WallpaperCardProps {
+  wallpaper: Wallpaper;
+  user: ReturnType<typeof useAuth>['user'];
+  onOrder: (wallpaper: Wallpaper) => void;
+}
+
+const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, onOrder }) => {
+  const images = [wallpaper.image_url, wallpaper.second_image_url].filter(
+    (url): url is string => !!url && url.trim() !== ''
+  );
+  const hasMultiple = images.length > 1;
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [imgErrors, setImgErrors] = useState<Set<number>>(new Set());
+  const touchStartX = useRef<number | null>(null);
+
+  const visibleImages = images.map((url, idx) =>
+    imgErrors.has(idx) ? PLACEHOLDER_SVG : url
+  );
+
+  const goToSlide = useCallback((index: number) => {
+    if (!hasMultiple) return;
+    setCurrentIndex((index + images.length) % images.length);
+  }, [hasMultiple, images.length]);
+
+  const goPrev = useCallback(() => goToSlide(currentIndex - 1), [currentIndex, goToSlide]);
+  const goNext = useCallback(() => goToSlide(currentIndex + 1), [currentIndex, goToSlide]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(delta) > 40) {
+      if (delta > 0) goPrev();
+      else goNext();
+    }
+    touchStartX.current = null;
+  };
+
+  const handleImgError = (idx: number) => {
+    setImgErrors((prev) => new Set(prev).add(idx));
+  };
+
+  return (
+    <div
+      className="group bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
+    >
+      <div
+        className="relative aspect-[3/4] overflow-hidden"
+        onTouchStart={hasMultiple ? handleTouchStart : undefined}
+        onTouchEnd={hasMultiple ? handleTouchEnd : undefined}
+      >
+        <img
+          src={visibleImages[currentIndex]}
+          alt={`${wallpaper.category} wallpaper${hasMultiple ? (currentIndex === 0 ? ' – design' : ' – on wall') : ''}`}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          loading="lazy"
+          onError={() => handleImgError(currentIndex)}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+        {hasMultiple && (
+          <>
+            <button
+              type="button"
+              aria-label="Show previous wallpaper image"
+              onClick={goPrev}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-gray-700 hover:bg-white hover:text-gray-900 shadow-sm transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Show next wallpaper image"
+              onClick={goNext}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-gray-700 hover:bg-white hover:text-gray-900 shadow-sm transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+              {images.map((_, dotIdx) => (
+                <button
+                  key={dotIdx}
+                  type="button"
+                  aria-label={dotIdx === 0 ? 'Show wallpaper design' : 'Show wallpaper on wall'}
+                  aria-current={currentIndex === dotIdx}
+                  onClick={() => goToSlide(dotIdx)}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    currentIndex === dotIdx
+                      ? 'bg-white w-5'
+                      : 'bg-white/50 hover:bg-white/80'
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="absolute top-3 right-3">
+          <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-800 rounded-full">
+            {wallpaper.category}
+          </span>
+        </div>
+      </div>
+
+      <div className="p-5">
+        <button
+          onClick={() => onOrder(wallpaper)}
+          className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 ${
+            user
+              ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg'
+              : 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white shadow-md hover:shadow-lg'
+          }`}
+        >
+          {user ? (
+            <>
+              <ShoppingCart className="w-4 h-4" />
+              Order Now
+            </>
+          ) : (
+            <>
+              <LogIn className="w-4 h-4" />
+              Please Login
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export default function WallpaperGallery() {
   const navigate = useNavigate();
@@ -170,48 +310,12 @@ export default function WallpaperGallery() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredWallpapers.map((wallpaper) => (
-            <div
+            <WallpaperCard
               key={wallpaper.id}
-              className="group bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
-            >
-              <div className="relative aspect-[3/4] overflow-hidden">
-                <img
-                  src={wallpaper.image_url}
-                  alt={`${wallpaper.category} wallpaper`}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                <div className="absolute top-3 right-3">
-                  <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-800 rounded-full">
-                    {wallpaper.category}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-5">
-                <button
-                  onClick={() => handleOrderClick(wallpaper)}
-                  className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 ${
-                    user
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg'
-                      : 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white shadow-md hover:shadow-lg'
-                  }`}
-                >
-                  {user ? (
-                    <>
-                      <ShoppingCart className="w-4 h-4" />
-                      Order Now
-                    </>
-                  ) : (
-                    <>
-                      <LogIn className="w-4 h-4" />
-                      Please Login
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
+              wallpaper={wallpaper}
+              user={user}
+              onOrder={handleOrderClick}
+            />
           ))}
         </div>
 

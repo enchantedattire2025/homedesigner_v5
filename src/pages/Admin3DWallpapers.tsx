@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Trash2, Eye, EyeOff, Plus, X, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Upload, Trash2, Eye, EyeOff, Plus, X, Loader2, Image as ImageIcon, Edit2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 
 interface Wallpaper {
   id: string;
   image_url: string;
+  second_image_url: string | null;
   category: string;
   is_active: boolean;
   created_at: string;
@@ -33,6 +34,8 @@ export default function Admin3DWallpapers() {
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingWallpaper, setEditingWallpaper] = useState<Wallpaper | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState('Geometric');
@@ -41,6 +44,14 @@ export default function Admin3DWallpapers() {
   const [useUrlInput, setUseUrlInput] = useState(false);
   const [imageUrls, setImageUrls] = useState<string>('');
   const [isActive, setIsActive] = useState(true);
+
+  // Second image ("Wallpaper on Wall") state — create modal
+  const [secondImageFile, setSecondImageFile] = useState<File | null>(null);
+  const [secondImagePreview, setSecondImagePreview] = useState<string | null>(null);
+
+  // Second image state — edit modal
+  const [editSecondImageFile, setEditSecondImageFile] = useState<File | null>(null);
+  const [editSecondImagePreview, setEditSecondImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('Admin3DWallpapers - Auth check:', {
@@ -111,6 +122,38 @@ export default function Admin3DWallpapers() {
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleSecondImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSecondImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSecondImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeSecondImage = () => {
+    setSecondImageFile(null);
+    setSecondImagePreview(null);
+  };
+
+  const handleEditSecondImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setEditSecondImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEditSecondImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeEditSecondImage = () => {
+    setEditSecondImageFile(null);
+    setEditSecondImagePreview(null);
+  };
+
   const uploadImage = async (file: File): Promise<string> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
@@ -147,6 +190,13 @@ export default function Admin3DWallpapers() {
       setUploading(true);
       console.log('Submitting wallpapers...');
 
+      let secondImageUrl: string | null = null;
+
+      // Upload the optional "Wallpaper on Wall" image if one was selected
+      if (secondImageFile) {
+        secondImageUrl = await uploadImage(secondImageFile);
+      }
+
       const wallpapersToInsert: any[] = [];
 
       // Handle file uploads
@@ -155,6 +205,7 @@ export default function Admin3DWallpapers() {
           const imageUrl = await uploadImage(file);
           wallpapersToInsert.push({
             image_url: imageUrl,
+            second_image_url: secondImageUrl,
             category: selectedCategory,
             is_active: isActive,
             created_by: user?.id
@@ -168,6 +219,7 @@ export default function Admin3DWallpapers() {
         for (const url of urls) {
           wallpapersToInsert.push({
             image_url: url.trim(),
+            second_image_url: secondImageUrl,
             category: selectedCategory,
             is_active: isActive,
             created_by: user?.id
@@ -197,7 +249,70 @@ export default function Admin3DWallpapers() {
     }
   };
 
-  const handleDelete = async (id: string, imageUrl: string) => {
+  const openEditModal = (wallpaper: Wallpaper) => {
+    setEditingWallpaper(wallpaper);
+    setEditSecondImageFile(null);
+    setEditSecondImagePreview(wallpaper.second_image_url || null);
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!editingWallpaper) return;
+
+    try {
+      setUploading(true);
+
+      const updates: { second_image_url?: string | null } = {};
+
+      if (editSecondImageFile) {
+        // Upload the new "Wallpaper on Wall" image
+        const newUrl = await uploadImage(editSecondImageFile);
+        updates.second_image_url = newUrl;
+      } else if (editSecondImagePreview === null && editingWallpaper.second_image_url) {
+        // Admin removed the existing second image
+        updates.second_image_url = null;
+      }
+
+      // Only update if there's something to change
+      if (Object.keys(updates).length === 0) {
+        setShowEditModal(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from('wallpapers_3d')
+        .update(updates)
+        .eq('id', editingWallpaper.id);
+
+      if (error) {
+        console.error('Update error:', error);
+        throw error;
+      }
+
+      alert('Wallpaper updated successfully!');
+      setShowEditModal(false);
+      setEditingWallpaper(null);
+      setEditSecondImageFile(null);
+      setEditSecondImagePreview(null);
+      fetchWallpapers();
+    } catch (error: any) {
+      console.error('Error updating wallpaper:', error);
+      alert(`Failed to update wallpaper: ${error.message || 'Unknown error'}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingWallpaper(null);
+    setEditSecondImageFile(null);
+    setEditSecondImagePreview(null);
+  };
+
+  const handleDelete = async (id: string, imageUrl: string, secondImageUrl: string | null) => {
     if (!confirm('Are you sure you want to delete this wallpaper?')) return;
 
     try {
@@ -213,6 +328,15 @@ export default function Admin3DWallpapers() {
         await supabase.storage
           .from('wallpaper-images')
           .remove([imagePath]);
+      }
+
+      if (secondImageUrl) {
+        const secondPath = secondImageUrl.split('/').pop();
+        if (secondPath && secondImageUrl.includes('wallpaper-images')) {
+          await supabase.storage
+            .from('wallpaper-images')
+            .remove([secondPath]);
+        }
       }
 
       alert('Wallpaper deleted successfully!');
@@ -246,6 +370,8 @@ export default function Admin3DWallpapers() {
     setImageUrls('');
     setUseUrlInput(false);
     setIsActive(true);
+    setSecondImageFile(null);
+    setSecondImagePreview(null);
   };
 
   if (authLoading || loading) {
@@ -324,7 +450,14 @@ export default function Admin3DWallpapers() {
                               )}
                             </button>
                             <button
-                              onClick={() => handleDelete(wallpaper.id, wallpaper.image_url)}
+                              onClick={() => openEditModal(wallpaper)}
+                              className="p-2 rounded-full bg-blue-500 text-white hover:scale-110 transition-transform"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(wallpaper.id, wallpaper.image_url, wallpaper.second_image_url)}
                               className="p-2 rounded-full bg-red-500 text-white hover:scale-110 transition-transform"
                               title="Delete"
                             >
@@ -332,6 +465,12 @@ export default function Admin3DWallpapers() {
                             </button>
                           </div>
                         </div>
+                        {wallpaper.second_image_url && (
+                          <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+                            <ImageIcon className="w-3 h-3" />
+                            <span>Has "on wall" image</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -488,6 +627,48 @@ export default function Admin3DWallpapers() {
                   )}
                 </div>
 
+                {/* Optional "Wallpaper on Wall" image */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Wallpaper on Wall (Optional)
+                  </label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Shows the wallpaper applied to a wall. Displayed as a second image in the gallery carousel.
+                  </p>
+                  {secondImagePreview ? (
+                    <div className="relative inline-block">
+                      <img
+                        src={secondImagePreview}
+                        alt="Wallpaper on wall preview"
+                        className="w-48 aspect-[3/4] object-cover rounded-lg border border-gray-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeSecondImage}
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                      <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                      <label className="cursor-pointer">
+                        <span className="text-blue-600 hover:text-blue-800 font-medium">
+                          Select an image
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleSecondImageChange}
+                          className="hidden"
+                        />
+                      </label>
+                      <p className="text-sm text-gray-500 mt-2">PNG, JPG up to 10MB</p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center">
                   <input
                     type="checkbox"
@@ -521,6 +702,106 @@ export default function Admin3DWallpapers() {
                       </>
                     ) : (
                       <>Add Wallpapers</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit modal — update the optional "Wallpaper on Wall" image */}
+      {showEditModal && editingWallpaper && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Edit Wallpaper</h2>
+                <button
+                  onClick={closeEditModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={editingWallpaper.image_url}
+                    alt="Wallpaper design"
+                    className="w-24 aspect-[3/4] object-cover rounded-lg border border-gray-300"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{editingWallpaper.category}</p>
+                    <p className="text-xs text-gray-500 mt-1">The main wallpaper design image cannot be changed here.</p>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Wallpaper on Wall (Optional)
+                  </label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Shows the wallpaper applied to a wall. Displayed as a second image in the gallery carousel.
+                  </p>
+                  {editSecondImagePreview ? (
+                    <div className="relative inline-block">
+                      <img
+                        src={editSecondImagePreview}
+                        alt="Wallpaper on wall preview"
+                        className="w-48 aspect-[3/4] object-cover rounded-lg border border-gray-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeEditSecondImage}
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                      <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                      <label className="cursor-pointer">
+                        <span className="text-blue-600 hover:text-blue-800 font-medium">
+                          Select an image
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleEditSecondImageChange}
+                          className="hidden"
+                        />
+                      </label>
+                      <p className="text-sm text-gray-500 mt-2">PNG, JPG up to 10MB</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400 flex items-center justify-center gap-2"
+                  >
+                    {uploading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>Save Changes</>
                     )}
                   </button>
                 </div>

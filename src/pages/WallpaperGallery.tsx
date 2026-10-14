@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, LogIn, Loader2, Search, Sparkles, Palette, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, LogIn, Loader2, Search, Sparkles, Palette } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import AuthModal from '../components/AuthModal';
 import { supabase } from '../lib/supabase';
@@ -31,8 +31,40 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
   const hasMultiple = images.length > 1;
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set());
   const touchStartX = useRef<number | null>(null);
+  const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearCountdown = useCallback(() => {
+    if (countdownTimer.current) {
+      clearInterval(countdownTimer.current);
+      countdownTimer.current = null;
+    }
+    setCountdown(null);
+  }, []);
+
+  const handleMouseEnter = useCallback(() => {
+    if (!hasMultiple || currentIndex !== 0 || countdownTimer.current) return;
+
+    setCountdown(5);
+    let secondsRemaining = 5;
+    countdownTimer.current = setInterval(() => {
+      secondsRemaining -= 1;
+      if (secondsRemaining <= 0) {
+        if (countdownTimer.current) clearInterval(countdownTimer.current);
+        countdownTimer.current = null;
+        setCountdown(null);
+        setCurrentIndex(1);
+      } else {
+        setCountdown(secondsRemaining);
+      }
+    }, 1000);
+  }, [hasMultiple, currentIndex]);
+
+  useEffect(() => () => {
+    if (countdownTimer.current) clearInterval(countdownTimer.current);
+  }, []);
 
   const visibleImages = images.map((url, idx) =>
     imgErrors.has(idx) ? PLACEHOLDER_SVG : url
@@ -40,6 +72,11 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
 
   const goToSlide = useCallback((index: number) => {
     if (!hasMultiple) return;
+    if (countdownTimer.current) {
+      clearInterval(countdownTimer.current);
+      countdownTimer.current = null;
+    }
+    setCountdown(null);
     setCurrentIndex((index + images.length) % images.length);
   }, [hasMultiple, images.length]);
 
@@ -66,6 +103,8 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
 
   return (
     <div
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={clearCountdown}
       className="group bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
     >
       <div
@@ -82,25 +121,21 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
+        {countdown !== null && hasMultiple && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="absolute top-3 left-3 z-20 flex items-center gap-2 rounded-full border border-white/25 bg-slate-950/75 px-3 py-1.5 text-xs font-semibold text-white shadow-lg backdrop-blur-md"
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-white/70 text-[11px] tabular-nums">
+              {countdown}
+            </span>
+            <span>Showing on-wall image in {countdown}s</span>
+          </div>
+        )}
+
         {hasMultiple && (
           <>
-            <button
-              type="button"
-              aria-label="Show previous wallpaper image"
-              onClick={goPrev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Show next wallpaper image"
-              onClick={goNext}
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
               <span className="rounded-full border border-white/20 bg-slate-950/65 px-3 py-1 text-[11px] font-semibold tracking-wide text-white shadow-md backdrop-blur-md">
                 {currentIndex === 0 ? 'Design' : 'On Wall'}

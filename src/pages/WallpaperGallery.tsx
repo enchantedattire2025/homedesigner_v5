@@ -31,6 +31,7 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
   const hasMultiple = images.length > 1;
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPointerOver, setIsPointerOver] = useState(false);
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set());
   const touchStartX = useRef<number | null>(null);
 
@@ -72,15 +73,28 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
         className="relative aspect-[3/4] overflow-hidden"
         onTouchStart={hasMultiple ? handleTouchStart : undefined}
         onTouchEnd={hasMultiple ? handleTouchEnd : undefined}
+        onMouseEnter={() => {
+          setIsPointerOver(true);
+          if (hasMultiple) setCurrentIndex(1);
+        }}
+        onMouseLeave={() => setIsPointerOver(false)}
       >
-        <img
-          src={visibleImages[currentIndex]}
-          alt={`${wallpaper.category} wallpaper${hasMultiple ? (currentIndex === 0 ? ' – design' : ' – on wall') : ''}`}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-          loading="lazy"
-          onError={() => handleImgError(currentIndex)}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        {visibleImages.map((imageSrc, imageIndex) => (
+          <img
+            key={`${wallpaper.id}-${imageIndex}`}
+            src={imageSrc}
+            alt={`${wallpaper.category} wallpaper${hasMultiple ? (imageIndex === 0 ? ' – design' : ' – on wall') : ''}`}
+            className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-out ${
+              currentIndex === imageIndex
+                ? 'z-[1] opacity-100 scale-100'
+                : 'z-0 opacity-0 scale-[1.04]'
+            }`}
+            loading={imageIndex === 0 ? 'lazy' : 'lazy'}
+            onError={() => handleImgError(imageIndex)}
+            aria-hidden={currentIndex !== imageIndex}
+          />
+        ))
+        <div className="absolute inset-0 z-[2] pointer-events-none bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         {hasMultiple && (
           <>
@@ -88,7 +102,7 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
               type="button"
               aria-label="Show previous wallpaper image"
               onClick={goPrev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -96,12 +110,12 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
               type="button"
               aria-label="Show next wallpaper image"
               onClick={goNext}
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
 
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
               <span className="rounded-full border border-white/20 bg-slate-950/65 px-3 py-1 text-[11px] font-semibold tracking-wide text-white shadow-md backdrop-blur-md">
                 {currentIndex === 0 ? 'Design' : 'On Wall'}
               </span>

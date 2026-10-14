@@ -247,16 +247,20 @@ const [subscriptionManagementLoading, setSubscriptionManagementLoading] = useSta
     subscription.isExpired &&
     !isSubscriptionPage;
 
+  const isQuotationView = location.pathname.startsWith('/view-quote/');
+
   return (
     <div className="min-h-screen flex flex-col">
 
       <DashboardRedirectHandler />
 
-      {/* 
+      {/*
         Header stays outside the subscription popup.
         Therefore navbar tabs remain clickable.
+        Hidden on quotation views so the downloaded/printed
+        quotation is completely free of website branding.
       */}
-      <Header />
+      {!isQuotationView && <Header />}
 
       <main className="flex-grow">
 
@@ -536,8 +540,8 @@ const [subscriptionManagementLoading, setSubscriptionManagementLoading] = useSta
 
       </main>
 
-      <Footer />
-      <Chatbot />
+      {!isQuotationView && <Footer />}
+      {!isQuotationView && <Chatbot />}
       <InstallPrompt />
 
       {/*

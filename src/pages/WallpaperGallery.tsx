@@ -1,16 +1,6 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  ShoppingCart,
-  LogIn,
-  Loader2,
-  Search,
-  Sparkles,
-  Palette,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+import { ShoppingCart, LogIn, Loader2, Search, Sparkles, Palette, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import AuthModal from '../components/AuthModal';
 import { supabase } from '../lib/supabase';
@@ -22,27 +12,11 @@ interface Wallpaper {
   category: string;
 }
 
-const CATEGORIES = [
-  'All',
-  'Geometric',
-  'Nature',
-  'Luxury',
-  'Modern',
-  'Floral',
-  'Industrial',
-  'Texture',
-  'Abstract',
-  'Wood',
-  'Zen',
-  'Space',
-  'Urban',
-];
+const CATEGORIES = ["All", "Geometric", "Nature", "Luxury", "Modern", "Floral", "Industrial", "Texture", "Abstract", "Wood", "Zen", "Space", "Urban"];
 
-const PLACEHOLDER_SVG =
-  'data:image/svg+xml;base64,' +
-  btoa(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400"><rect width="300" height="400" fill="#f3f4f6"/><text x="150" y="200" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#9ca3af">Image unavailable</text></svg>'
-  );
+const PLACEHOLDER_SVG = 'data:image/svg+xml;base64,' + btoa(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400"><rect width="300" height="400" fill="#f3f4f6"/><text x="150" y="200" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#9ca3af">Image unavailable</text></svg>'
+);
 
 interface WallpaperCardProps {
   wallpaper: Wallpaper;
@@ -50,15 +24,10 @@ interface WallpaperCardProps {
   onOrder: (wallpaper: Wallpaper) => void;
 }
 
-const WallpaperCard: React.FC<WallpaperCardProps> = ({
-  wallpaper,
-  user,
-  onOrder,
-}) => {
+const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder }) => {
   const images = [wallpaper.image_url, wallpaper.second_image_url].filter(
     (url): url is string => !!url && url.trim() !== ''
   );
-
   const hasMultiple = images.length > 1;
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -69,23 +38,13 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({
     imgErrors.has(idx) ? PLACEHOLDER_SVG : url
   );
 
-  const goToSlide = useCallback(
-    (index: number) => {
-      if (!hasMultiple) return;
-      setCurrentIndex((index + images.length) % images.length);
-    },
-    [hasMultiple, images.length]
-  );
+  const goToSlide = useCallback((index: number) => {
+    if (!hasMultiple) return;
+    setCurrentIndex((index + images.length) % images.length);
+  }, [hasMultiple, images.length]);
 
-  const goPrev = useCallback(
-    () => goToSlide(currentIndex - 1),
-    [currentIndex, goToSlide]
-  );
-
-  const goNext = useCallback(
-    () => goToSlide(currentIndex + 1),
-    [currentIndex, goToSlide]
-  );
+  const goPrev = useCallback(() => goToSlide(currentIndex - 1), [currentIndex, goToSlide]);
+  const goNext = useCallback(() => goToSlide(currentIndex + 1), [currentIndex, goToSlide]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -93,17 +52,11 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX.current === null) return;
-
     const delta = e.changedTouches[0].clientX - touchStartX.current;
-
     if (Math.abs(delta) > 40) {
-      if (delta > 0) {
-        goPrev();
-      } else {
-        goNext();
-      }
+      if (delta > 0) goPrev();
+      else goNext();
     }
-
     touchStartX.current = null;
   };
 
@@ -112,78 +65,52 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({
   };
 
   return (
-    <div className="group bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+    <div
+      className="group bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
+    >
       <div
-        className="relative aspect-[3/4] overflow-hidden isolate"
+        className="relative aspect-[3/4] overflow-hidden"
         onTouchStart={hasMultiple ? handleTouchStart : undefined}
         onTouchEnd={hasMultiple ? handleTouchEnd : undefined}
-        onMouseEnter={() => {
-          if (hasMultiple) setCurrentIndex(1);
-        }}
       >
-        {/* Layered images: the active image smoothly comes to the front */}
-        {visibleImages.map((imageSrc, imageIndex) => (
-          <img
-            key={`${wallpaper.id}-${imageIndex}`}
-            src={imageSrc}
-            alt={`${wallpaper.category} wallpaper${
-              hasMultiple
-                ? imageIndex === 0
-                  ? ' - design'
-                  : ' - on wall'
-                : ''
-            }`}
-            className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-in-out ${
-              currentIndex === imageIndex
-                ? 'z-[1] opacity-100 scale-100'
-                : 'z-0 opacity-0 scale-[1.04]'
-            }`}
-            loading="lazy"
-            onError={() => handleImgError(imageIndex)}
-            aria-hidden={currentIndex !== imageIndex}
-          />
-        ))}
+        <img
+          src={visibleImages[currentIndex]}
+          alt={`${wallpaper.category} wallpaper${hasMultiple ? (currentIndex === 0 ? ' – design' : ' – on wall') : ''}`}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          loading="lazy"
+          onError={() => handleImgError(currentIndex)}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        {/* Image overlay */}
-        <div className="absolute inset-0 z-[2] pointer-events-none bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-        {/* Carousel navigation */}
         {hasMultiple && (
           <>
             <button
               type="button"
               aria-label="Show previous wallpaper image"
               onClick={goPrev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
-
             <button
               type="button"
               aria-label="Show next wallpaper image"
               onClick={goNext}
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4" />
             </button>
 
-            {/* Active image label and small bottom dots */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
               <span className="rounded-full border border-white/20 bg-slate-950/65 px-3 py-1 text-[11px] font-semibold tracking-wide text-white shadow-md backdrop-blur-md">
                 {currentIndex === 0 ? 'Design' : 'On Wall'}
               </span>
-
               <div className="flex items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-1.5 backdrop-blur-sm">
                 {images.map((_, dotIdx) => (
                   <button
                     key={dotIdx}
                     type="button"
-                    aria-label={
-                      dotIdx === 0
-                        ? 'Show wallpaper design'
-                        : 'Show wallpaper on wall'
-                    }
+                    aria-label={dotIdx === 0 ? 'Show wallpaper design' : 'Show wallpaper on wall'}
                     aria-current={currentIndex === dotIdx}
                     onClick={() => goToSlide(dotIdx)}
                     className={`h-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black ${
@@ -198,15 +125,13 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({
           </>
         )}
 
-        {/* Category badge */}
-        <div className="absolute top-3 right-3 z-20">
+        <div className="absolute top-3 right-3">
           <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-800 rounded-full">
             {wallpaper.category}
           </span>
         </div>
       </div>
 
-      {/* Existing order and login action preserved */}
       <div className="p-5">
         <button
           onClick={() => onOrder(wallpaper)}
@@ -236,13 +161,10 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({
 export default function WallpaperGallery() {
   const navigate = useNavigate();
   const { user } = useAuth();
-
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [pendingWallpaper, setPendingWallpaper] = useState<Wallpaper | null>(
-    null
-  );
+  const [pendingWallpaper, setPendingWallpaper] = useState<Wallpaper | null>(null);
   const [pendingCustomOrder, setPendingCustomOrder] = useState(false);
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
   const [loading, setLoading] = useState(true);
@@ -254,7 +176,6 @@ export default function WallpaperGallery() {
   const fetchWallpapers = async () => {
     try {
       setLoading(true);
-
       const { data, error } = await supabase
         .from('wallpapers_3d')
         .select('*')
@@ -262,7 +183,6 @@ export default function WallpaperGallery() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-
       setWallpapers(data || []);
     } catch (error) {
       console.error('Error fetching wallpapers:', error);
@@ -271,10 +191,8 @@ export default function WallpaperGallery() {
     }
   };
 
-  const filteredWallpapers = wallpapers.filter((wallpaper) => {
-    const matchesCategory =
-      selectedCategory === 'All' || wallpaper.category === selectedCategory;
-
+  const filteredWallpapers = wallpapers.filter(wallpaper => {
+    const matchesCategory = selectedCategory === 'All' || wallpaper.category === selectedCategory;
     return matchesCategory;
   });
 
@@ -288,8 +206,8 @@ export default function WallpaperGallery() {
 
     navigate('/wallpaper-order', {
       state: {
-        selectedWallpaper: wallpaper,
-      },
+        selectedWallpaper: wallpaper
+      }
     });
   };
 
@@ -305,10 +223,9 @@ export default function WallpaperGallery() {
     if (pendingWallpaper) {
       navigate('/wallpaper-order', {
         state: {
-          selectedWallpaper: pendingWallpaper,
-        },
+          selectedWallpaper: pendingWallpaper
+        }
       });
-
       setPendingWallpaper(null);
     }
   };
@@ -320,7 +237,6 @@ export default function WallpaperGallery() {
       setShowAuthModal(true);
       return;
     }
-
     navigate('/wallpaper-order', { state: { isCustomOrder: true } });
   };
 
@@ -342,14 +258,11 @@ export default function WallpaperGallery() {
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
             3D Wallpaper Collection
           </h1>
-
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Transform your space with our premium 3D wallpapers. Browse our
-            curated collection and order your favorite designs.
+            Transform your space with our premium 3D wallpapers. Browse our curated collection and order your favorite designs.
           </p>
         </div>
 
-        {/* Existing category filters preserved */}
         <div className="mb-8">
           <div className="flex flex-wrap justify-center gap-3">
             {CATEGORIES.map((category) => (
@@ -370,33 +283,24 @@ export default function WallpaperGallery() {
 
         <div className="mb-6 text-center">
           <p className="text-gray-600">
-            Showing{' '}
-            <span className="font-semibold text-gray-900">
-              {filteredWallpapers.length}
-            </span>{' '}
-            wallpapers
+            Showing <span className="font-semibold text-gray-900">{filteredWallpapers.length}</span> wallpapers
           </p>
         </div>
 
-        {/* Existing custom design banner preserved */}
+        {/* Custom Design CTA */}
         <div className="mb-10 rounded-2xl overflow-hidden bg-gradient-to-r from-slate-800 to-slate-900 shadow-xl">
           <div className="flex flex-col md:flex-row items-center gap-6 p-8">
             <div className="flex-shrink-0 w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center">
               <Sparkles className="w-8 h-8 text-amber-400" />
             </div>
-
             <div className="flex-1 text-center md:text-left">
               <h2 className="text-2xl font-bold text-white mb-1">
                 Don't see what you're looking for?
               </h2>
-
               <p className="text-slate-300 text-sm max-w-xl">
-                Describe your dream wallpaper and we'll create a completely
-                custom 3D design just for your space — any style, any color, any
-                pattern.
+                Describe your dream wallpaper and we'll create a completely custom 3D design just for your space — any style, any color, any pattern.
               </p>
             </div>
-
             <div className="flex-shrink-0">
               <button
                 onClick={handleCustomOrderClick}
@@ -409,7 +313,6 @@ export default function WallpaperGallery() {
           </div>
         </div>
 
-        {/* Existing wallpaper grid preserved */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredWallpapers.map((wallpaper) => (
             <WallpaperCard
@@ -426,14 +329,8 @@ export default function WallpaperGallery() {
             <div className="text-gray-400 mb-4">
               <Search className="w-16 h-16 mx-auto" />
             </div>
-
-            <h3 className="text-2xl font-semibold text-gray-900 mb-2">
-              No wallpapers found
-            </h3>
-
-            <p className="text-gray-600">
-              Try adjusting your search or filter criteria
-            </p>
+            <h3 className="text-2xl font-semibold text-gray-900 mb-2">No wallpapers found</h3>
+            <p className="text-gray-600">Try adjusting your search or filter criteria</p>
           </div>
         )}
       </div>

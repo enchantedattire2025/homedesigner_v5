@@ -88,7 +88,7 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
               type="button"
               aria-label="Show previous wallpaper image"
               onClick={goPrev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-gray-700 hover:bg-white hover:text-gray-900 shadow-sm transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -96,26 +96,31 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
               type="button"
               aria-label="Show next wallpaper image"
               onClick={goNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-gray-700 hover:bg-white hover:text-gray-900 shadow-sm transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg transition-all duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-hover:scale-105 hover:!bg-slate-950/90 hover:!scale-110 active:scale-95 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black/30"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
 
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-              {images.map((_, dotIdx) => (
-                <button
-                  key={dotIdx}
-                  type="button"
-                  aria-label={dotIdx === 0 ? 'Show wallpaper design' : 'Show wallpaper on wall'}
-                  aria-current={currentIndex === dotIdx}
-                  onClick={() => goToSlide(dotIdx)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    currentIndex === dotIdx
-                      ? 'bg-white w-5'
-                      : 'bg-white/50 hover:bg-white/80'
-                  }`}
-                />
-              ))}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
+              <span className="rounded-full border border-white/20 bg-slate-950/65 px-3 py-1 text-[11px] font-semibold tracking-wide text-white shadow-md backdrop-blur-md">
+                {currentIndex === 0 ? 'Design' : 'On Wall'}
+              </span>
+              <div className="flex items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-1.5 backdrop-blur-sm">
+                {images.map((_, dotIdx) => (
+                  <button
+                    key={dotIdx}
+                    type="button"
+                    aria-label={dotIdx === 0 ? 'Show wallpaper design' : 'Show wallpaper on wall'}
+                    aria-current={currentIndex === dotIdx}
+                    onClick={() => goToSlide(dotIdx)}
+                    className={`h-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black ${
+                      currentIndex === dotIdx
+                        ? 'w-6 bg-white shadow-sm'
+                        : 'w-2 bg-white/60 hover:bg-white/90 hover:scale-125'
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
           </>
         )}

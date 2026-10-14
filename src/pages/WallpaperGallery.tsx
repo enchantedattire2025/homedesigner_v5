@@ -121,19 +121,6 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        {countdown !== null && hasMultiple && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="absolute top-3 left-3 z-20 flex items-center gap-2 rounded-full border border-white/25 bg-slate-950/75 px-3 py-1.5 text-xs font-semibold text-white shadow-lg backdrop-blur-md"
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-white/70 text-[11px] tabular-nums">
-              {countdown}
-            </span>
-            <span>Showing on-wall image in {countdown}s</span>
-          </div>
-        )}
-
         {hasMultiple && (
           <>
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
@@ -145,15 +132,19 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
                   <button
                     key={dotIdx}
                     type="button"
-                    aria-label={dotIdx === 0 ? 'Show wallpaper design' : 'Show wallpaper on wall'}
+                    aria-label={dotIdx === 0 ? 'Show wallpaper design' : countdown !== null ? `On-wall image in ${countdown} seconds` : 'Show wallpaper on wall'}
                     aria-current={currentIndex === dotIdx}
                     onClick={() => goToSlide(dotIdx)}
-                    className={`h-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black ${
-                      currentIndex === dotIdx
-                        ? 'w-6 bg-white shadow-sm'
-                        : 'w-2 bg-white/60 hover:bg-white/90 hover:scale-125'
+                    className={`flex h-5 items-center justify-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black text-[10px] font-bold tabular-nums ${
+                      countdown !== null && dotIdx === 1
+                        ? 'w-5 bg-white text-slate-900 shadow-sm'
+                        : currentIndex === dotIdx
+                          ? 'w-6 bg-white shadow-sm'
+                          : 'w-2 bg-white/60 hover:bg-white/90 hover:scale-125'
                     }`}
-                  />
+                  >
+                    {countdown !== null && dotIdx === 1 ? countdown : ''}
+                  </button>
                 ))}
               </div>
             </div>

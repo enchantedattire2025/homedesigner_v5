@@ -179,7 +179,7 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
             )}
           </button>
       </div>
-    </div>
+    
   );
 };
 

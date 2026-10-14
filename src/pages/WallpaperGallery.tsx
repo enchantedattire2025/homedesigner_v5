@@ -127,7 +127,7 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
               <span className="rounded-full border border-white/20 bg-slate-950/65 px-3 py-1 text-[11px] font-semibold tracking-wide text-white shadow-md backdrop-blur-md">
                 {currentIndex === 0 ? 'Design' : 'On Wall'}
               </span>
-              <div className="flex items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-1.5 backdrop-blur-sm">
+              <div className="flex items-center gap-1 rounded-full bg-black/25 px-2 py-1 backdrop-blur-sm">
                 {images.map((_, dotIdx) => (
                   <button
                     key={dotIdx}
@@ -135,12 +135,12 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
                     aria-label={dotIdx === 0 ? 'Show wallpaper design' : countdown !== null ? `On-wall image in ${countdown} seconds` : 'Show wallpaper on wall'}
                     aria-current={currentIndex === dotIdx}
                     onClick={() => goToSlide(dotIdx)}
-                    className={`flex h-5 items-center justify-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black text-[10px] font-bold tabular-nums ${
+                    className={`flex h-4 items-center justify-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black text-[8px] font-bold tabular-nums ${
                       countdown !== null && dotIdx === 1
-                        ? 'w-5 bg-white text-slate-900 shadow-sm'
+                        ? 'w-4 bg-white text-slate-900 shadow-sm'
                         : currentIndex === dotIdx
-                          ? 'w-6 bg-white shadow-sm'
-                          : 'w-2 bg-white/60 hover:bg-white/90 hover:scale-125'
+                          ? 'w-4 bg-white shadow-sm'
+                          : 'w-1.5 bg-white/60 hover:bg-white/90 hover:scale-125'
                     }`}
                   >
                     {countdown !== null && dotIdx === 1 ? countdown : ''}

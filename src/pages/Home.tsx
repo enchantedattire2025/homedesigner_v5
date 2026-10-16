@@ -49,7 +49,7 @@ export default function Home() {
         supabase.from('designer_deals').select('id, title, description, discount_percentage, original_price, deal_price, deal_type, valid_until, image_url, designers(id, name, profile_image)').eq('is_active', true).lte('valid_from', new Date().toISOString()).gte('valid_until', new Date().toISOString()).order('is_featured', { ascending: false }).order('created_at', { ascending: false }).limit(3),
         supabase.from('reviews').select('id, rating, title, comment, created_at').eq('verified_purchase', true).order('created_at', { ascending: false }).limit(3),
         supabase.from('designers').select('id', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('projects').select('id', { count: 'exact', head: true }).eq('status', 'finalized'),
+        supabase.from('customers').select('id', { count: 'exact', head: true }).eq('assignment_status', 'completed'),
         supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('verified_purchase', true),
       ]);
 

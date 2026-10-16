@@ -87,7 +87,7 @@ export default function Home() {
   };
 
   return <div className="bg-[#fcfaf7] text-secondary-800">
-    <section className="relative overflow-hidden bg-[#f7eee7]">
+    <section className="relative overflow-hidden bg-[#f7eee7] pb-12 sm:pb-14">
       <div className="absolute inset-0 bg-gradient-to-r from-[#f7eee7] via-[#f7eee7]/95 to-transparent lg:w-3/4" />
       <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-20">
         <div className="relative z-10">
@@ -105,11 +105,11 @@ export default function Home() {
           <p className="absolute bottom-6 right-6 max-w-48 text-right font-serif text-2xl italic leading-tight text-white">Beautiful homes. Happier lives.</p>
         </div>
       </div>
-      <div className="relative mx-auto -mb-10 max-w-7xl px-4 sm:px-6 lg:px-8"><DesignerSearchBar locations={locations} specializations={specializations} onSearch={handleSearch} /></div>
+      <div className="relative z-20 mx-auto mt-8 max-w-7xl px-4 sm:px-6 lg:px-8"><DesignerSearchBar locations={locations} specializations={specializations} onSearch={handleSearch} /></div>
     </section>
 
     <main>
-      <section className="mx-auto max-w-7xl px-4 pb-16 pt-24 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 pb-16 pt-16 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between gap-6"><div><p className="text-sm font-bold uppercase tracking-[0.2em] text-primary-600">Meet the marketplace</p><h2 className="mt-2 font-serif text-3xl font-bold text-secondary-800 sm:text-4xl">Featured Interior Designers</h2><p className="mt-3 text-stone-600">Explore top-rated professionals with verified portfolios and client feedback.</p></div><Link to="/designers" className="hidden items-center gap-2 text-sm font-semibold text-primary-700 sm:inline-flex">View All Designers <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></div>
         {loading ? <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">{[1, 2, 3, 4].map((item) => <div key={item} className="h-96 animate-pulse rounded-2xl bg-stone-200" />)}</div> : error ? <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-900">Designers are temporarily unavailable. Please try again shortly.</div> : designers.length > 0 ? <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">{designers.map((designer) => <FeaturedDesignerCard key={designer.id} designer={designer} />)}</div> : <div className="mt-8 rounded-2xl border border-dashed border-stone-300 bg-white p-12 text-center text-stone-600">No verified designers are available yet. Check back soon.</div>}
         <Link to="/designers" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-primary-700 sm:hidden">View All Designers <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>

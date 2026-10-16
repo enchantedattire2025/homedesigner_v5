@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Star, MapPin, Filter, Search, Building2, Wifi } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Designer } from '../lib/supabase';
 
 const Designers = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCity, setSelectedCity] = useState('');
-  const [selectedSpecialization, setSelectedSpecialization] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
+  const [selectedCity, setSelectedCity] = useState(() => searchParams.get('city') || '');
+  const [selectedSpecialization, setSelectedSpecialization] = useState(() => searchParams.get('specialization') || '');
   const [selectedExperience, setSelectedExperience] = useState('');
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,9 +40,9 @@ const Designers = () => {
       
       console.log('Fetched designers:', data);
       setDesigners(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching designers:', error);
-      setError(error.message || 'Failed to load designers');
+      setError(error instanceof Error ? error.message : 'Failed to load designers');
     } finally {
       setLoading(false);
     }

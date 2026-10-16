@@ -18,9 +18,9 @@ const Header = () => {
   const [editProfileLoading, setEditProfileLoading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut, isAdmin } = useAuth();
-  const { designer, isDesigner, loading: designerLoading } = useDesignerProfile();
-  const { hasCustomerProject, loading: registrationLoading } = useUserRegistrationStatus();
+  const { user, isAdmin } = useAuth();
+  const { designer, isDesigner } = useDesignerProfile();
+  const { hasCustomerProject } = useUserRegistrationStatus();
   useEffect(() => {
       const handleClickOutside = (event: MouseEvent) => {
         if (
@@ -42,9 +42,11 @@ const Header = () => {
     { name: 'Home', href: '/', icon: HomeIcon },
     { name: 'Designers', href: '/designers' },
     { name: 'Projects', href: '/projects' },
-    { name: 'Social Wall', href: '/gallery' },
+    { name: 'Offers & Deals', href: '/deals' },
+    { name: 'Design Ideas', href: '/design-ideas' },
     { name: 'Materials', href: '/materials' },
     { name: '3D Wallpaper', href: '/3d-wallpaper' },
+    { name: 'Social Wall', href: '/gallery' },
   ];
 
   const isActive = (path: string) => location.pathname === path;

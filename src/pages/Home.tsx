@@ -1,699 +1,130 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Star, Award, Users, ArrowRight, Play, Palette, UserPlus, Percent, Clock, Gift, ExternalLink, IndianRupee as Rupee, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Award, CheckCircle2, ClipboardList, Home as HomeIcon, MessageSquareQuote, Search, Star, Users, UserRound } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { useUserRegistrationStatus } from '../hooks/useUserRegistrationStatus';
-import { supabase } from '../lib/supabase';
-import VideoModal from '../components/VideoModal';
+import { supabase, type Designer } from '../lib/supabase';
 import AuthModal from '../components/AuthModal';
+import DealCard from '../components/DealCard';
+import DesignerSearchBar from '../components/DesignerSearchBar';
+import FeaturedDesignerCard from '../components/FeaturedDesignerCard';
 
-interface Deal {
+type Deal = {
   id: string;
-  designer_id: string;
   title: string;
   description: string;
   discount_percentage: number;
   original_price: number;
   deal_price: number;
   deal_type: string;
-  services_included: string[];
-  valid_from: string;
   valid_until: string;
-  is_active: boolean;
-  is_featured: boolean;
-  image_url: string;
-  designers?: {
-    name: string;
-    specialization: string;
-    location: string;
-    profile_image: string;
-    rating: number;
-  };
-}
-
-const Home = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const { hasAnyRegistration, loading: registrationLoading } = useUserRegistrationStatus();
-  const [showVideoModal, setShowVideoModal] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [pendingAction, setPendingAction] = useState<'designer' | 'customer' | null>(null);
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [currentDealIndex, setCurrentDealIndex] = useState(0);
-  const [featuredDesigners, setFeaturedDesigners] = useState<any[]>([]);
-  const [stats, setStats] = useState([
-    { icon: Users, label: 'Expert Designers', value: '0' },
-    { icon: Award, label: 'Projects Completed', value: '0' },
-    { icon: Star, label: 'Happy Clients', value: '0' },
-  ]);
-
-  const designerAds = [
-    {
-      id: '550e8400-e29b-41d4-a716-446655440001', // Valid UUID format - same as featured designer
-      name: 'Priya Sharma',
-      specialization: 'Modern & Contemporary',
-      location: 'Mumbai',
-      image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=400',
-      portfolioImage: 'https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=800',
-      offer: {
-        title: 'New Year Special',
-        discount: '25% OFF',
-        description: 'Complete home makeover packages',
-        validUntil: '2024-01-31',
-        originalPrice: '₹2,00,000',
-        discountedPrice: '₹1,50,000'
-      },
-      rating: 4.9,
-      projects: 45,
-      badge: 'Premium Designer'
-    },
-    {
-      id: '550e8400-e29b-41d4-a716-446655440004', // Valid UUID format
-      name: 'Vikram Singh',
-      specialization: 'Luxury & High-End',
-      location: 'Gurgaon',
-      image: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=400',
-      portfolioImage: 'https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=800',
-      offer: {
-        title: 'Luxury Living Sale',
-        discount: 'FREE',
-        description: '3D visualization with any project above ₹5L',
-        validUntil: '2024-02-15',
-        originalPrice: '₹50,000',
-        discountedPrice: 'FREE'
-      },
-      rating: 4.7,
-      projects: 89,
-      badge: 'Top Rated'
-    },
-    {
-      id: '550e8400-e29b-41d4-a716-446655440005', // Valid UUID format
-      name: 'Meera Reddy',
-      specialization: 'Eco-Friendly Design',
-      location: 'Hyderabad',
-      image: 'https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=400',
-      portfolioImage: 'https://images.pexels.com/photos/1571461/pexels-photo-1571461.jpeg?auto=compress&cs=tinysrgb&w=800',
-      offer: {
-        title: 'Green Home Initiative',
-        discount: '30% OFF',
-        description: 'Sustainable design consultation',
-        validUntil: '2024-02-28',
-        originalPrice: '₹75,000',
-        discountedPrice: '₹52,500'
-      },
-      rating: 4.8,
-      projects: 28,
-      badge: 'Eco Expert'
-    }
-  ];
-
-  useEffect(() => {
-    fetchDeals();
-    fetchFeaturedDesigners();
-    fetchStats();
-  }, []);
-
-  useEffect(() => {
-    if (deals.length > 0) {
-      const interval = setInterval(() => {
-        setCurrentDealIndex((prevIndex) => (prevIndex + 1) % deals.length);
-      }, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [deals]);
-
-  const fetchDeals = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('designer_deals')
-        .select(`
-          *,
-          designers (
-            name,
-            specialization,
-            location,
-            profile_image,
-            rating
-          )
-        `)
-        .eq('is_active', true)
-        .gte('valid_until', new Date().toISOString())
-        .lte('valid_from', new Date().toISOString())
-        .order('is_featured', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      setDeals(data || []);
-    } catch (error) {
-      console.error('Error fetching deals:', error);
-    }
-  };
-
-  const fetchFeaturedDesigners = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('designers')
-        .select('*')
-        .eq('is_active', true)
-        .order('rating', { ascending: false })
-        .order('total_reviews', { ascending: false })
-        .limit(3);
-
-      if (error) throw error;
-      setFeaturedDesigners(data || []);
-    } catch (error) {
-      console.error('Error fetching featured designers:', error);
-      setFeaturedDesigners([]);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const [designersResult, projectsResult, customersResult] = await Promise.all([
-        supabase
-          .from('designers')
-          .select('id', { count: 'exact', head: true })
-          .eq('is_active', true),
-        supabase
-          .from('projects')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'finalized'),
-        supabase
-          .from('customers')
-          .select('id', { count: 'exact', head: true })
-      ]);
-
-      const designersCount = designersResult.count || 0;
-      const projectsCount = projectsResult.count || 0;
-      const customersCount = customersResult.count || 0;
-
-      const formatCount = (count: number): string => {
-        if (count >= 10000) {
-          return `${Math.floor(count / 1000)}k+`;
-        } else if (count >= 1000) {
-          return `${(count / 1000).toFixed(1)}k+`;
-        } else if (count >= 100) {
-          return `${Math.floor(count / 100) * 100}+`;
-        } else {
-          return `${count}+`;
-        }
-      };
-
-      setStats([
-        { icon: Users, label: 'Expert Designers', value: formatCount(designersCount) },
-        { icon: Award, label: 'Projects Completed', value: formatCount(projectsCount) },
-        { icon: Star, label: 'Happy Clients', value: formatCount(customersCount) },
-      ]);
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  };
-
-  const nextDeal = () => {
-    setCurrentDealIndex((prevIndex) => (prevIndex + 1) % deals.length);
-  };
-
-  const prevDeal = () => {
-    setCurrentDealIndex((prevIndex) => (prevIndex - 1 + deals.length) % deals.length);
-  };
-
-  const getDaysRemaining = (validUntil: string) => {
-    const days = Math.ceil((new Date(validUntil).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    return days;
-  };
-
-  const handleDesignerRegistration = () => {
-    navigate('/register-designer');
-  };
-
-  const handleCustomerRegistration = () => {
-    if (!user) {
-      setPendingAction('customer');
-      setAuthMode('signup');
-      setShowAuthModal(true);
-      return;
-    }
-    navigate('/register-customer');
-  };
-
-  const handleContactDesigner = (designerId: string) => {
-    if (!user) {
-      setPendingAction(null);
-      setAuthMode('login');
-      setShowAuthModal(true);
-      return;
-    }
-    // User is authenticated, proceed to contact
-    navigate(`/designers/${designerId}`);
-  };
-
-  const handleAuthSuccess = () => {
-    // After successful authentication, redirect based on pending action
-    if (pendingAction === 'designer') {
-      navigate('/register-designer');
-    } else if (pendingAction === 'customer') {
-      navigate('/register-customer');
-    }
-    setPendingAction(null);
-  };
-
-  const handleAuthModalClose = () => {
-    setShowAuthModal(false);
-    setPendingAction(null);
-  };
-
-  // Only show the "Join our community" section if user is not signed in
-  // Remove it completely when user is signed in (regardless of registration status)
-  const shouldShowJoinCommunity = !user;
-
-  return (
-    <div className="gradient-bg">
-      {/* Hero Section */}
-      <section className="relative py-20 lg:py-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h1 className="text-4xl lg:text-6xl font-bold text-secondary-800 mb-6 leading-tight">
-                Transform Your
-                <span className="block text-primary-500">Dream Home</span>
-              </h1>
-              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                Connect with Pune's most talented interior designers. From traditional elegance to modern sophistication, create spaces that reflect your unique style.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 mb-8">
-                <Link to="/designers" className="btn-primary text-center">
-                  Find Designers
-                  <ArrowRight className="inline-block ml-2 w-5 h-5" />
-                </Link>
-                <button 
-                  onClick={() => setShowVideoModal(true)}
-                  className="btn-secondary flex items-center justify-center"
-                >
-                  <Play className="w-5 h-5 mr-2" />
-                  Product Tour
-                </button>
-              </div>
-            </div>
-            
-            <div className="relative">
-              <div className="rounded-2xl overflow-hidden shadow-2xl transform rotate-2 hover:rotate-0 transition-transform duration-500">
-                <img
-                  src="https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=800"
-                  alt="Beautiful interior design"
-                  className="w-full h-96 object-cover"
-                />
-              </div>
-              <div className="absolute -bottom-6 -left-6 bg-white p-6 rounded-xl shadow-xl">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center">
-                    <Star className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-secondary-800">4.9/5 Rating</p>
-                    <p className="text-sm text-gray-600">From {stats[2].value} clients</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Registration Options - Only show if user is not logged in */}
-      {shouldShowJoinCommunity && (
-        <section className="py-16 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl lg:text-4xl font-bold text-secondary-800 mb-4">
-                Join Our Community
-              </h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                Whether you're a talented designer or looking to transform your space, we have the perfect platform for you
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              {/* Designer Registration */}
-              <div className="card p-8 text-center group hover:shadow-2xl transition-all duration-300">
-                <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-accent-500 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <Palette className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-secondary-800 mb-4">For Designers</h3>
-                <p className="text-gray-600 mb-6 leading-relaxed">
-                  Showcase your portfolio, connect with clients, and grow your interior design business on India's premier platform.
-                </p>
-                <ul className="text-left text-gray-600 mb-8 space-y-2">
-                  <li className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                    <span>Create stunning portfolio</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                    <span>Get matched with clients</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                    <span>Manage projects efficiently</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                    <span>Build your reputation</span>
-                  </li>
-                </ul>
-                <button 
-                  onClick={handleDesignerRegistration}
-                  className="btn-primary w-full"
-                >
-                  Register as Designer
-                </button>
-              </div>
-
-              {/* Customer Registration */}
-              <div className="card p-8 text-center group hover:shadow-2xl transition-all duration-300">
-                <div className="w-16 h-16 bg-gradient-to-br from-secondary-500 to-primary-500 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <UserPlus className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-secondary-800 mb-4">For Homeowners</h3>
-                <p className="text-gray-600 mb-6 leading-relaxed">
-                  Share your vision and get connected with the perfect interior designer to bring your dream home to life.
-                </p>
-                <ul className="text-left text-gray-600 mb-8 space-y-2">
-                  <li className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-secondary-500 rounded-full"></div>
-                    <span>Share your project details</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-secondary-500 rounded-full"></div>
-                    <span>Get matched with designers</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-secondary-500 rounded-full"></div>
-                    <span>Compare proposals</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-secondary-500 rounded-full"></div>
-                    <span>Track project progress</span>
-                  </li>
-                </ul>
-                <button 
-                  onClick={handleCustomerRegistration}
-                  className="bg-secondary-500 hover:bg-secondary-600 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl w-full"
-                >
-                  Register Your Project
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Stats Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {stats.map((stat, index) => {
-              const IconComponent = stat.icon;
-              return (
-                <div key={index} className="text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
-                    <IconComponent className="w-8 h-8 text-primary-600" />
-                  </div>
-                  <div className="text-3xl font-bold text-secondary-800 mb-2">{stat.value}</div>
-                  <div className="text-gray-600">{stat.label}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Designers */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-secondary-800 mb-4">
-              Featured Designers
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Meet our top-rated interior designers who have transformed thousands of homes across India
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {featuredDesigners.length > 0 ? (
-              featuredDesigners.map((designer) => (
-                <Link key={designer.id} to={`/designers/${designer.id}`} className="card p-6 group">
-                  <div className="relative mb-4">
-                    <img
-                      src={designer.profile_image || 'https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=400'}
-                      alt={designer.name}
-                      className="w-20 h-20 rounded-full object-cover mx-auto"
-                    />
-                    <div className="absolute -bottom-2 -right-2 bg-primary-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                      Top Rated
-                    </div>
-                  </div>
-
-                  <div className="text-center">
-                    <h3 className="text-xl font-semibold text-secondary-800 mb-2">{designer.name}</h3>
-                    <p className="text-primary-600 font-medium mb-2">{designer.specialization}</p>
-                    <p className="text-gray-600 mb-3">{designer.experience} years • {designer.location}</p>
-
-                    <div className="flex items-center justify-center space-x-2 mb-4">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < Math.floor(Number(designer.rating))
-                                ? 'text-yellow-400 fill-current'
-                                : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-sm text-gray-600">
-                        {Number(designer.rating).toFixed(1)} ({designer.total_reviews} reviews)
-                      </span>
-                    </div>
-
-                    <div className="text-primary-600 font-medium group-hover:text-primary-700 transition-colors">
-                      View Profile →
-                    </div>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <div className="col-span-3 text-center py-8 text-gray-500">
-                Loading featured designers...
-              </div>
-            )}
-          </div>
-
-          <div className="text-center mt-12">
-            <Link to="/designers" className="btn-primary">
-              View All Designers
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Exclusive Designer Deals Carousel */}
-      {deals.length > 0 && (
-        <section className="py-16 bg-gradient-to-br from-gray-50 to-sky-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <div className="inline-flex items-center space-x-2 bg-sky-100 text-sky-800 px-4 py-2 rounded-full text-sm font-medium mb-4">
-                <Gift className="w-4 h-4" />
-                <span>Limited Time Offers</span>
-              </div>
-              <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
-                Exclusive Designer Deals
-              </h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                Don't miss out on these amazing offers from our top designers. Transform your space with premium services at unbeatable prices.
-              </p>
-            </div>
-
-            <div className="relative">
-              {deals.length > 1 && (
-                <>
-                  <button
-                    onClick={prevDeal}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-white rounded-full p-3 shadow-lg hover:bg-gray-50 transition-colors"
-                    aria-label="Previous deal"
-                  >
-                    <ChevronLeft className="w-6 h-6 text-gray-700" />
-                  </button>
-                  <button
-                    onClick={nextDeal}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-white rounded-full p-3 shadow-lg hover:bg-gray-50 transition-colors"
-                    aria-label="Next deal"
-                  >
-                    <ChevronRight className="w-6 h-6 text-gray-700" />
-                  </button>
-                </>
-              )}
-
-              <div className="overflow-hidden">
-                <div
-                  className="transition-transform duration-500 ease-in-out"
-                  style={{ transform: `translateX(-${currentDealIndex * 100}%)` }}
-                >
-                  <div className="flex">
-                    {deals.map((deal) => {
-                      const daysRemaining = getDaysRemaining(deal.valid_until);
-                      return (
-                        <div key={deal.id} className="w-full flex-shrink-0 px-2">
-                          <div className="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 max-w-4xl mx-auto">
-                            <div className="grid md:grid-cols-2 gap-0">
-                              <div className="relative h-64 md:h-auto">
-                                {deal.image_url ? (
-                                  <img
-                                    src={deal.image_url}
-                                    alt={deal.title}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full bg-gradient-to-br from-sky-100 to-sky-200 flex items-center justify-center">
-                                    <Gift className="w-24 h-24 text-sky-400" />
-                                  </div>
-                                )}
-                                <div className="absolute top-4 right-4 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-full text-lg font-bold shadow-lg">
-                                  {deal.discount_percentage}% OFF
-                                </div>
-                                {deal.is_featured && (
-                                  <div className="absolute top-4 left-4 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1">
-                                    <Star className="w-4 h-4 fill-current" />
-                                    Featured
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="p-8">
-                                <div className="flex items-center gap-3 mb-4">
-                                  {deal.designers && (
-                                    <>
-                                      <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center overflow-hidden">
-                                        {deal.designers.profile_image ? (
-                                          <img
-                                            src={deal.designers.profile_image}
-                                            alt={deal.designers.name}
-                                            className="w-full h-full object-cover"
-                                          />
-                                        ) : (
-                                          <span className="text-sky-700 font-semibold">
-                                            {deal.designers.name.charAt(0)}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div>
-                                        <p className="font-semibold text-gray-900">{deal.designers.name}</p>
-                                        <p className="text-sm text-gray-600">{deal.designers.specialization}</p>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-
-                                <span className="inline-block bg-sky-100 text-sky-700 px-3 py-1 rounded-full text-xs font-medium mb-3">
-                                  {deal.deal_type}
-                                </span>
-
-                                <h3 className="text-2xl font-bold text-gray-900 mb-3">{deal.title}</h3>
-                                <p className="text-gray-600 mb-6">{deal.description}</p>
-
-                                <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-lg p-4 mb-6">
-                                  <div className="flex items-end justify-between">
-                                    <div>
-                                      <p className="text-sm text-gray-500 mb-1">Deal Price</p>
-                                      <p className="text-3xl font-bold text-sky-600">₹{deal.deal_price.toLocaleString()}</p>
-                                      <p className="text-sm text-gray-500 line-through mt-1">₹{deal.original_price.toLocaleString()}</p>
-                                    </div>
-                                    <div className="text-right">
-                                      <div className="flex items-center gap-1 text-orange-600 mb-1">
-                                        <Clock className="w-4 h-4" />
-                                        <span className="text-sm font-medium">{daysRemaining} days left</span>
-                                      </div>
-                                      <p className="text-xs text-gray-500">
-                                        Until {new Date(deal.valid_until).toLocaleDateString()}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {deal.services_included && deal.services_included.length > 0 && (
-                                  <div className="mb-6">
-                                    <p className="text-sm font-medium text-gray-700 mb-2">Includes:</p>
-                                    <div className="flex flex-wrap gap-2">
-                                      {deal.services_included.slice(0, 3).map((service, idx) => (
-                                        <span key={idx} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                                          {service}
-                                        </span>
-                                      ))}
-                                      {deal.services_included.length > 3 && (
-                                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                                          +{deal.services_included.length - 3} more
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {deals.length > 1 && (
-                <div className="flex justify-center gap-2 mt-6">
-                  {deals.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentDealIndex(index)}
-                      className={`w-2 h-2 rounded-full transition-all ${
-                        index === currentDealIndex
-                          ? 'bg-sky-600 w-8'
-                          : 'bg-gray-300 hover:bg-gray-400'
-                      }`}
-                      aria-label={`Go to deal ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Video Modal */}
-      <VideoModal
-        isOpen={showVideoModal}
-        onClose={() => setShowVideoModal(false)}
-        stats={{
-          designers: stats[0].value,
-          projects: stats[1].value,
-          clients: stats[2].value
-        }}
-      />
-
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={handleAuthModalClose}
-        mode={authMode}
-        onModeChange={setAuthMode}
-        onAuthSuccess={handleAuthSuccess}
-        userType={pendingAction}
-      />
-    </div>
-  );
+  image_url?: string | null;
+  designers?: { id?: string; name: string; profile_image?: string | null } | null;
 };
 
-export default Home;
+type Review = { id: string; rating: number; title: string | null; comment: string | null; created_at: string };
+
+type Stat = { label: string; value: string; icon: typeof Users; note: string };
+
+const fallbackHeroImage = 'https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=1600';
+
+const formatCount = (count: number) => count >= 1000 ? `${(count / 1000).toFixed(1)}k+` : count >= 100 ? `${Math.floor(count / 100) * 100}+` : `${count}+`;
+
+export default function Home() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [designers, setDesigners] = useState<Designer[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [stats, setStats] = useState<Stat[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  useEffect(() => {
+    const loadHomepage = async () => {
+      setLoading(true);
+      setError(false);
+      const [designersResult, dealsResult, reviewsResult, designerCount, projectCount, reviewCount] = await Promise.all([
+        supabase.from('designers').select('id, name, specialization, location, profile_image, portfolio_images, rating, total_reviews, total_projects, is_verified, is_active').eq('is_active', true).order('rating', { ascending: false }).order('total_reviews', { ascending: false }).limit(4),
+        supabase.from('designer_deals').select('id, title, description, discount_percentage, original_price, deal_price, deal_type, valid_until, image_url, designers(id, name, profile_image)').eq('is_active', true).lte('valid_from', new Date().toISOString()).gte('valid_until', new Date().toISOString()).order('is_featured', { ascending: false }).order('created_at', { ascending: false }).limit(3),
+        supabase.from('reviews').select('id, rating, title, comment, created_at').eq('verified_purchase', true).order('created_at', { ascending: false }).limit(3),
+        supabase.from('designers').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('projects').select('id', { count: 'exact', head: true }).eq('status', 'finalized'),
+        supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('verified_purchase', true),
+      ]);
+
+      if (designersResult.error || dealsResult.error) {
+        console.error('Could not load marketplace homepage data', designersResult.error || dealsResult.error);
+        setError(true);
+      }
+      setDesigners((designersResult.data || []) as Designer[]);
+      setDeals((dealsResult.data || []) as Deal[]);
+      setReviews((reviewsResult.data || []) as Review[]);
+      setStats([
+        { label: 'Verified designers', value: formatCount(designerCount.count || 0), icon: Users, note: 'Ready to bring your ideas to life' },
+        { label: 'Projects completed', value: formatCount(projectCount.count || 0), icon: Award, note: 'Across homes and spaces' },
+        { label: 'Homeowner reviews', value: formatCount(reviewCount.count || 0), icon: Star, note: 'From real marketplace experiences' },
+      ]);
+      setLoading(false);
+    };
+    void loadHomepage();
+  }, []);
+
+  const locations = designers.map((designer) => designer.location).filter(Boolean);
+  const specializations = designers.map((designer) => designer.specialization).filter(Boolean);
+
+  const handleSearch = (values: { location: string; specialization: string; search: string }) => {
+    const params = new URLSearchParams();
+    if (values.location) params.set('city', values.location);
+    if (values.specialization) params.set('specialization', values.specialization);
+    if (values.search) params.set('search', values.search);
+    navigate(`/designers${params.toString() ? `?${params.toString()}` : ''}`);
+  };
+
+  const handleProjectRegistration = () => {
+    if (user) navigate('/register-customer');
+    else setShowAuthModal(true);
+  };
+
+  return <div className="bg-[#fcfaf7] text-secondary-800">
+    <section className="relative overflow-hidden bg-[#f7eee7]">
+      <div className="absolute inset-0 bg-gradient-to-r from-[#f7eee7] via-[#f7eee7]/95 to-transparent lg:w-3/4" />
+      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-20">
+        <div className="relative z-10">
+          <p className="text-sm font-bold uppercase tracking-[0.22em] text-primary-700">One platform. Multiple interior designers.</p>
+          <h1 className="mt-5 max-w-2xl font-serif text-4xl font-bold leading-[1.08] text-secondary-800 sm:text-5xl lg:text-6xl">Find the Right Interior Designer for Your Dream Home</h1>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-stone-700">Compare portfolios, explore offers and connect with interior designers—all in one place.</p>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            <button onClick={handleProjectRegistration} className="group flex min-h-20 items-center justify-between rounded-xl bg-primary-600 px-5 py-4 text-left text-white shadow-lg shadow-primary-600/20 transition hover:-translate-y-0.5 hover:bg-primary-700"><span><span className="block font-semibold">Register Your Project</span><span className="mt-1 block text-sm text-white/80">Get quotes from verified designers</span></span><ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" aria-hidden="true" /></button>
+            <Link to="/register-designer" className="group flex min-h-20 items-center justify-between rounded-xl bg-secondary-700 px-5 py-4 text-left text-white shadow-lg shadow-secondary-700/20 transition hover:-translate-y-0.5 hover:bg-secondary-800"><span><span className="block font-semibold">Register as a Designer</span><span className="mt-1 block text-sm text-white/80">Showcase your work and get clients</span></span><ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" aria-hidden="true" /></Link>
+          </div>
+        </div>
+        <div className="relative min-h-[360px] overflow-hidden rounded-[2rem] shadow-2xl lg:min-h-[500px]">
+          <img src={fallbackHeroImage} alt="Warm modern living room interior" className="absolute inset-0 h-full w-full object-cover" fetchPriority="high" />
+          <div className="absolute inset-0 bg-gradient-to-t from-secondary-900/50 via-transparent to-white/10" />
+          <p className="absolute bottom-6 right-6 max-w-48 text-right font-serif text-2xl italic leading-tight text-white">Beautiful homes. Happier lives.</p>
+        </div>
+      </div>
+      <div className="relative mx-auto -mb-10 max-w-7xl px-4 sm:px-6 lg:px-8"><DesignerSearchBar locations={locations} specializations={specializations} onSearch={handleSearch} /></div>
+    </section>
+
+    <main>
+      <section className="mx-auto max-w-7xl px-4 pb-16 pt-24 sm:px-6 lg:px-8">
+        <div className="flex items-end justify-between gap-6"><div><p className="text-sm font-bold uppercase tracking-[0.2em] text-primary-600">Meet the marketplace</p><h2 className="mt-2 font-serif text-3xl font-bold text-secondary-800 sm:text-4xl">Featured Interior Designers</h2><p className="mt-3 text-stone-600">Explore top-rated professionals with verified portfolios and client feedback.</p></div><Link to="/designers" className="hidden items-center gap-2 text-sm font-semibold text-primary-700 sm:inline-flex">View All Designers <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></div>
+        {loading ? <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">{[1, 2, 3, 4].map((item) => <div key={item} className="h-96 animate-pulse rounded-2xl bg-stone-200" />)}</div> : error ? <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-900">Designers are temporarily unavailable. Please try again shortly.</div> : designers.length > 0 ? <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">{designers.map((designer) => <FeaturedDesignerCard key={designer.id} designer={designer} />)}</div> : <div className="mt-8 rounded-2xl border border-dashed border-stone-300 bg-white p-12 text-center text-stone-600">No verified designers are available yet. Check back soon.</div>}
+        <Link to="/designers" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-primary-700 sm:hidden">View All Designers <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+      </section>
+
+      <section className="bg-white py-16"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="flex items-end justify-between gap-6"><div><p className="text-sm font-bold uppercase tracking-[0.2em] text-primary-600">Save on your next project</p><h2 className="mt-2 font-serif text-3xl font-bold text-secondary-800 sm:text-4xl">Latest Offers & Deals</h2><p className="mt-3 text-stone-600">Current promotions published by designers in our marketplace.</p></div><Link to="/deals" className="hidden items-center gap-2 text-sm font-semibold text-primary-700 sm:inline-flex">View All Offers <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></div>{deals.length > 0 ? <div className="mt-8 grid gap-6 lg:grid-cols-3">{deals.map((deal) => <DealCard key={deal.id} deal={deal} compact />)}</div> : <div className="mt-8 rounded-2xl border border-dashed border-stone-300 bg-[#fcfaf7] p-12 text-center"><p className="font-semibold text-secondary-800">New designer offers are coming soon.</p><p className="mt-2 text-sm text-stone-600">Published promotions will appear here as soon as they are available.</p></div>}<Link to="/deals" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-primary-700 sm:hidden">View All Offers <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></div></section>
+
+      <section className="border-y border-stone-200 bg-[#f7eee7] py-12"><div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 md:grid-cols-3 lg:px-8">{stats.map(({ label, value, icon: Icon, note }) => <div key={label} className="flex items-center gap-4 border-stone-300 md:border-r md:last:border-r-0 md:px-6 first:md:pl-0"><div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white text-primary-600 shadow-sm"><Icon className="h-7 w-7" aria-hidden="true" /></div><div><p className="text-3xl font-bold text-secondary-800">{value}</p><p className="font-semibold text-secondary-800">{label}</p><p className="mt-1 text-sm text-stone-600">{note}</p></div></div>)}</div></section>
+
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8"><div className="max-w-2xl"><p className="text-sm font-bold uppercase tracking-[0.2em] text-primary-600">A simpler way to begin</p><h2 className="mt-2 font-serif text-3xl font-bold text-secondary-800 sm:text-4xl">How It Works</h2><p className="mt-3 text-stone-600">From your first idea to the right designer, everything stays in one place.</p></div><div className="mt-10 grid gap-5 md:grid-cols-4">{[{ number: '01', icon: ClipboardList, title: 'Register Your Project', text: 'Tell us about your home, budget and requirements.' }, { number: '02', icon: MessageSquareQuote, title: 'Receive Quotations', text: 'Request and receive proposals from designers.' }, { number: '03', icon: Search, title: 'Compare Designers', text: 'Review portfolios, services, offers and ratings.' }, { number: '04', icon: HomeIcon, title: 'Choose Your Designer', text: 'Connect with the professional who fits your vision.' }].map(({ number, icon: Icon, title, text }) => <div key={number} className="relative rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"><span className="text-sm font-bold text-primary-600">{number}</span><div className="mt-5 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><Icon className="h-6 w-6" aria-hidden="true" /></div><h3 className="mt-5 font-semibold text-secondary-800">{title}</h3><p className="mt-2 text-sm leading-6 text-stone-600">{text}</p></div>)}</div></section>
+
+      {reviews.length > 0 && <section className="bg-white py-16"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="flex items-end justify-between gap-6"><div><p className="text-sm font-bold uppercase tracking-[0.2em] text-primary-600">Real experiences</p><h2 className="mt-2 font-serif text-3xl font-bold text-secondary-800 sm:text-4xl">What Homeowners Say</h2></div><div className="hidden items-center gap-2 text-sm font-semibold text-amber-600 sm:flex"><Star className="h-5 w-5 fill-current" aria-hidden="true" /> Verified marketplace reviews</div></div><div className="mt-8 grid gap-6 md:grid-cols-3">{reviews.map((review) => <article key={review.id} className="rounded-2xl border border-stone-200 bg-[#fcfaf7] p-6"><div className="flex gap-1 text-amber-500">{[1, 2, 3, 4, 5].map((star) => <Star key={star} className={`h-4 w-4 ${star <= review.rating ? 'fill-current' : ''}`} aria-hidden="true" />)}</div><p className="mt-5 text-sm leading-7 text-stone-700">“{review.comment || review.title || 'A positive experience with a marketplace designer.'}”</p><div className="mt-6 flex items-center gap-3 border-t border-stone-200 pt-4"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-primary-700"><UserRound className="h-4 w-4" aria-hidden="true" /></div><div><p className="text-sm font-semibold text-secondary-800">Verified homeowner</p><p className="text-xs text-stone-500">{new Date(review.created_at).toLocaleDateString()}</p></div><CheckCircle2 className="ml-auto h-4 w-4 text-emerald-600" aria-label="Verified review" /></div></article>)}</div></div></section>}
+
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8"><div className="relative overflow-hidden rounded-3xl bg-secondary-800 px-6 py-10 text-white sm:px-12"><div className="relative z-10 flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center"><div><p className="text-sm font-bold uppercase tracking-[0.2em] text-primary-300">For interior designers</p><h2 className="mt-3 max-w-2xl font-serif text-3xl font-bold sm:text-4xl">Grow your design business with the right homeowners.</h2><p className="mt-3 max-w-2xl text-white/75">Showcase your portfolio, share your offers and connect with homeowners who are ready to create.</p></div><Link to="/register-designer" className="group inline-flex shrink-0 items-center gap-3 rounded-xl bg-primary-600 px-6 py-4 font-semibold text-white transition hover:bg-primary-500">Join as a Designer <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" aria-hidden="true" /></Link></div><div className="absolute -right-8 -top-16 h-64 w-64 rounded-full border border-white/10" /><div className="absolute -bottom-24 right-24 h-64 w-64 rounded-full border border-white/10" /></div></section>
+    </main>
+    <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} mode="signup" onModeChange={() => undefined} onAuthSuccess={() => navigate('/register-customer')} userType="customer" />
+  </div>;
+}

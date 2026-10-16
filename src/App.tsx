@@ -12,8 +12,6 @@ import { AuthProvider } from './hooks/AuthContext';
 import { useAuth } from './hooks/useAuth';
 import { useDesignerProfile } from './hooks/useDesignerProfile';
 import { detectUserTypeAndRedirect } from './utils/userTypeDetection';
-import { processUserNotifications } from './utils/whatsappNotification';
-
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Chatbot from './components/Chatbot';
@@ -29,6 +27,9 @@ import { useSubscription } from './hooks/useSubscription';
 import { supabase } from './lib/supabase';
 
 const Designers = lazy(() => import('./pages/Designers'));
+const Deals = lazy(() => import('./pages/Deals'));
+const DealDetail = lazy(() => import('./pages/DealDetail'));
+const DesignIdeas = lazy(() => import('./pages/Gallery'));
 const Projects = lazy(() => import('./pages/Projects'));
 const Gallery = lazy(() => import('./pages/Gallery'));
 const Materials = lazy(() => import('./pages/Materials'));
@@ -94,8 +95,12 @@ const OfflineBillEditor = lazy(() => import('./pages/OfflineBillEditor'));
 
 // Expose utilities to window for emergency use and debugging
 if (typeof window !== 'undefined') {
-  (window as any).forceLogoutAll = forceLogoutAll;
-  (window as any).debugAuthState = debugAuthState;
+  const debugWindow = window as typeof window & {
+    forceLogoutAll?: typeof forceLogoutAll;
+    debugAuthState?: typeof debugAuthState;
+  };
+  debugWindow.forceLogoutAll = forceLogoutAll;
+  debugWindow.debugAuthState = debugAuthState;
 
   console.log(
     '%cDebug Commands Available:',
@@ -288,6 +293,10 @@ const [subscriptionManagementLoading, setSubscriptionManagementLoading] = useSta
               path="/designers/:id"
               element={<DesignerDetail />}
             />
+
+            <Route path="/deals" element={<Deals />} />
+            <Route path="/deals/:id" element={<DealDetail />} />
+            <Route path="/design-ideas" element={<DesignIdeas />} />
 
             <Route
               path="/projects"

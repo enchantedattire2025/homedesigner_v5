@@ -60,6 +60,17 @@ const Projects = () => {
         return;
       }
 
+      // Keep only the most recently completed project per designer.
+      // The query is already ordered by updated_at DESC, so the first
+      // occurrence of each designer ID is the latest one.
+      const seenDesigners = new Set<string>();
+      projectsData = projectsData.filter((project: any) => {
+        const designerId = project.assigned_designer?.id;
+        if (!designerId || seenDesigners.has(designerId)) return false;
+        seenDesigners.add(designerId);
+        return true;
+      });
+
       // Fetch accepted quotes for these projects
       let quotesData = null;
       
@@ -126,7 +137,15 @@ const Projects = () => {
       // If there's an error, show demo projects instead of an error
       console.log('Falling back to demo projects due to error:', error.message);
       const demoProjects = generateDemoCompletedProjects();
-      const transformedProjects = demoProjects.map(project => {
+      // Keep only one project per designer in demo data too
+      const seenDemoDesigners = new Set<string>();
+      const dedupedDemoProjects = demoProjects.filter((project: any) => {
+        const designerId = project.assigned_designer?.id;
+        if (!designerId || seenDemoDesigners.has(designerId)) return false;
+        seenDemoDesigners.add(designerId);
+        return true;
+      });
+      const transformedProjects = dedupedDemoProjects.map(project => {
         const duration = calculateProjectDuration(project.created_at, project.updated_at);
         
         return {

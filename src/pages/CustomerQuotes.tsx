@@ -16,7 +16,10 @@ import {
   IndianRupee as Rupee,
   UserCheck,
   Upload,
-  Paperclip
+  Paperclip,
+  Phone,
+  Mail,
+  MapPin
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
@@ -67,8 +70,9 @@ interface Quote {
   designer: {
     id: string;
     name: string;
-    email: string;
-    phone: string;
+    email: string | null;
+    phone: string | null;
+    location: string | null;
     specialization: string;
     profile_image: string;
   };
@@ -146,11 +150,13 @@ const CustomerQuotes = () => {
         console.log('Project IDs:', projectIds);
 
         // Direct query filtered by user's projects
+        // Only select non-sensitive designer fields here; contact details
+        // are fetched separately for accepted quotes via the secure RPC.
         const { data: directQuotes, error: directError } = await supabase
           .from('designer_quotes')
           .select(`
             *,
-            designer:designers(id, name, email, phone, specialization, profile_image),
+            designer:designers(id, name, specialization, profile_image),
             project:customers(id, project_name, user_id, assigned_designer_id)
           `)
           .in('project_id', projectIds)
@@ -176,7 +182,29 @@ const CustomerQuotes = () => {
               return { ...quote, items: [] };
             }
 
-            return { ...quote, items: items || [] };
+            // For accepted quotes, fetch designer contact details via the secure RPC.
+            // Non-accepted quotes get null contact fields.
+            let contactInfo = { email: null, phone: null, location: null };
+            if (quote.customer_accepted && quote.status === 'accepted') {
+              const { data: contactData } = await supabase
+                .rpc('get_accepted_quote_designer_contact', { p_quote_id: quote.id });
+              if (contactData && contactData.length > 0) {
+                contactInfo = {
+                  email: contactData[0].designer_email,
+                  phone: contactData[0].designer_phone,
+                  location: contactData[0].designer_location
+                };
+              }
+            }
+
+            const designerWithContact = quote.designer ? {
+              ...quote.designer,
+              email: contactInfo.email,
+              phone: contactInfo.phone,
+              location: contactInfo.location
+            } : null;
+
+            return { ...quote, designer: designerWithContact, items: items || [] };
           }));
 
           setQuotes(quotesWithItems);
@@ -200,22 +228,17 @@ const CustomerQuotes = () => {
       }
     }
 
-    // Fetch designer information
-    let designer = null;
-
-    if (quote.designer_id) {
-      const { data: designerData, error: designerError } = await supabase
-        .from('designers')
-        .select('id, name, email, phone, specialization, profile_image')
-        .eq('id', quote.designer_id)
-        .maybeSingle();
-
-      if (designerError) {
-        console.error('Error fetching designer:', designerError);
-      }
-
-      designer = designerData;
-    }
+    // Use designer contact fields from the RPC response directly.
+    // The RPC function withholds email/phone/location for non-accepted quotes.
+    const designer = quote.designer_id ? {
+      id: quote.designer_id,
+      name: quote.designer_name,
+      email: quote.designer_email,
+      phone: quote.designer_phone,
+      location: quote.designer_location,
+      specialization: quote.designer_specialization,
+      profile_image: quote.designer_profile_image
+    } : null;
 
     return {
       ...quote,
@@ -731,7 +754,6 @@ const CustomerQuotes = () => {
               </div>
 
               <div className="mb-6">
-                
                 <h4 className="font-semibold text-secondary-800 mb-3">Designer Information</h4>
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center">
@@ -750,18 +772,45 @@ const CustomerQuotes = () => {
                   <div>
                     <p className="font-medium text-secondary-800">{selectedQuote.designer?.name}</p>
                     <p className="text-sm text-gray-600">{selectedQuote.designer?.specialization}</p>
-                    <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
-                      <span>{selectedQuote.designer?.email}</span>
-                      {selectedQuote.designer?.phone && (
-                        <>
-                          <span>•</span>
-                          <span>{selectedQuote.designer?.phone}</span>
-                        </>
-                      )}
-                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Designer Contact Details — only shown after the quote is accepted */}
+              {(selectedQuote.status === 'accepted' || selectedQuote.customer_accepted) && selectedQuote.designer && (
+                <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-5">
+                  <h4 className="font-semibold text-secondary-800 mb-4">Designer Contact Details</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Phone className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Contact Number</p>
+                        <p className="font-medium text-gray-800">{selectedQuote.designer.phone || 'Not available'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Mail className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Email Address</p>
+                        <p className="font-medium text-gray-800">{selectedQuote.designer.email || 'Not available'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                        <MapPin className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Location</p>
+                        <p className="font-medium text-gray-800">{selectedQuote.designer.location || 'Not available'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {selectedQuote.design_image_url && (
                 <div className="mb-6">

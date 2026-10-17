@@ -31,30 +31,29 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
   const hasMultiple = images.length > 1;
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set());
   const touchStartX = useRef<number | null>(null);
-  
+  const countdownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   const clearCountdown = useCallback(() => {
     if (countdownTimer.current) {
-      clearInterval(countdownTimer.current);
+      clearTimeout(countdownTimer.current);
       countdownTimer.current = null;
     }
-    
   }, []);
 
   const handleMouseEnter = useCallback(() => {
-  if (!hasMultiple || currentIndex !== 0 || countdownTimer.current) return;
+    if (!hasMultiple || currentIndex !== 0 || countdownTimer.current) return;
 
-  countdownTimer.current = setTimeout(() => {
-    countdownTimer.current = null;
-    setCurrentIndex(1);
-  }, 2000);
-}, [hasMultiple, currentIndex]);
+    countdownTimer.current = setTimeout(() => {
+      countdownTimer.current = null;
+      setCurrentIndex(1);
+    }, 2000);
+  }, [hasMultiple, currentIndex]);
 
   useEffect(() => () => {
-    if (countdownTimer.current) clearInterval(countdownTimer.current);
+    if (countdownTimer.current) clearTimeout(countdownTimer.current);
   }, []);
 
   const visibleImages = images.map((url, idx) =>
@@ -64,10 +63,9 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
   const goToSlide = useCallback((index: number) => {
     if (!hasMultiple) return;
     if (countdownTimer.current) {
-      clearInterval(countdownTimer.current);
+      clearTimeout(countdownTimer.current);
       countdownTimer.current = null;
     }
-    setCountdown(null);
     setCurrentIndex((index + images.length) % images.length);
   }, [hasMultiple, images.length]);
 
@@ -118,24 +116,22 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
               <span className="rounded-full border border-white/20 bg-slate-950/65 px-3 py-1 text-[11px] font-semibold tracking-wide text-white shadow-md backdrop-blur-md">
                 {currentIndex === 0 ? 'Design' : 'On Wall'}
               </span>
-                    <div className={`flex h-4 items-center justify-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black ${
-        currentIndex === dotIdx
-          ? 'w-4 bg-white shadow-sm'
-          : 'w-1.5 bg-white/60 hover:bg-white/90 hover:scale-125'
-      }`}
+                    <div className="flex items-center gap-1 rounded-full bg-black/25 px-2 py-1 backdrop-blur-sm">
+                {images.map((_, dotIdx) => (
+                  <button
+                    key={dotIdx}
+                    type="button"
+                    aria-label={dotIdx === 0 ? 'Show wallpaper design' : 'Show wallpaper on wall'}
                     aria-current={currentIndex === dotIdx}
                     onClick={() => goToSlide(dotIdx)}
-                    className={`flex h-4 items-center justify-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black text-[8px] font-bold tabular-nums ${
-                      countdown !== null && dotIdx === 1
-                        ? 'w-4 bg-white text-slate-900 shadow-sm'
-                        : currentIndex === dotIdx
-                          ? 'w-4 bg-white shadow-sm'
-                          : 'w-1.5 bg-white/60 hover:bg-white/90 hover:scale-125'
+                    className={`flex h-4 items-center justify-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black ${
+                      currentIndex === dotIdx
+                        ? 'w-4 bg-white shadow-sm'
+                        : 'w-1.5 bg-white/60 hover:bg-white/90 hover:scale-125'
                     }`}
-                  >
-                   
-                  </button>
+                  />
                 ))}
+              </div>
               </div>
             </div>
           </>

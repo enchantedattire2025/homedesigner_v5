@@ -45,22 +45,13 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
   }, []);
 
   const handleMouseEnter = useCallback(() => {
-    if (!hasMultiple || currentIndex !== 0 || countdownTimer.current) return;
+  if (!hasMultiple || currentIndex !== 0 || countdownTimer.current) return;
 
-    setCountdown(5);
-    let secondsRemaining = 5;
-    countdownTimer.current = setInterval(() => {
-      secondsRemaining -= 1;
-      if (secondsRemaining <= 0) {
-        if (countdownTimer.current) clearInterval(countdownTimer.current);
-        countdownTimer.current = null;
-        setCountdown(null);
-        setCurrentIndex(1);
-      } else {
-        setCountdown(secondsRemaining);
-      }
-    }, 1000);
-  }, [hasMultiple, currentIndex]);
+  countdownTimer.current = setTimeout(() => {
+    countdownTimer.current = null;
+    setCurrentIndex(1);
+  }, 2000);
+}, [hasMultiple, currentIndex]);
 
   useEffect(() => () => {
     if (countdownTimer.current) clearInterval(countdownTimer.current);

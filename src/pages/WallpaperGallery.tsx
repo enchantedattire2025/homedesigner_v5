@@ -41,7 +41,7 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
       clearInterval(countdownTimer.current);
       countdownTimer.current = null;
     }
-    setCountdown(null);
+    
   }, []);
 
   const handleMouseEnter = useCallback(() => {

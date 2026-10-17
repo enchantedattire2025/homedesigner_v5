@@ -33,3 +33,9 @@ verify_jwt = true
 
 [functions.ai-quotation-save-draft]
 verify_jwt = true
+
+[functions.quote-payment-create]
+verify_jwt = true
+
+[functions.quote-payment-verify]
+verify_jwt = true

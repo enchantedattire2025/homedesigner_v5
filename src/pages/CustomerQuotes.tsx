@@ -19,11 +19,15 @@ import {
   Paperclip,
   Phone,
   Mail,
-  MapPin
+  MapPin,
+  Edit3,
+  ShieldCheck,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import SendToDesignerModal from '../components/SendToDesignerModal';
+import QuoteActionsPanel from '../components/QuoteActionsPanel';
 import { downloadFileFromStorage } from '../utils/downloadFile';
 
 interface QuoteItem {
@@ -67,6 +71,15 @@ interface Quote {
   quotation_file_url?: string | null;
   payment_receipt_url?: string | null;
   design_image_url?: string | null;
+  version_number?: number;
+  parent_quote_id?: string | null;
+  rejection_reason?: string | null;
+  rejection_comments?: string | null;
+  payment_status?: string;
+  confirmation_amount?: number | null;
+  revision_round?: number;
+  latest_change_request_status?: string | null;
+  unread_message_count?: number;
   designer: {
     id: string;
     name: string;
@@ -185,7 +198,7 @@ const CustomerQuotes = () => {
             // For accepted quotes, fetch designer contact details via the secure RPC.
             // Non-accepted quotes get null contact fields.
             let contactInfo = { email: null, phone: null, location: null };
-            if (quote.customer_accepted && quote.status === 'accepted') {
+            if (quote.customer_accepted && quote.status === 'accepted' && quote.payment_status === 'verified') {
               const { data: contactData } = await supabase
                 .rpc('get_accepted_quote_designer_contact', { p_quote_id: quote.id });
               if (contactData && contactData.length > 0) {
@@ -441,17 +454,32 @@ const CustomerQuotes = () => {
     }).format(amount);
   };
 
-  const getStatusBadge = (status: string, accepted: boolean) => {
+  const getStatusBadge = (status: string, accepted: boolean, paymentStatus?: string) => {
     switch (status) {
       case 'draft':
         return <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium">Draft</span>;
       case 'sent':
-        return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">Pending Review</span>;
-      case 'accepted':
+        return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">Awaiting Review</span>;
+      case 'changes_requested':
         return (
-          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
-            <CheckCircle className="w-3 h-3" />
-            <span>Accepted</span>
+          <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+            <Edit3 className="w-3 h-3" />
+            <span>Changes Requested</span>
+          </span>
+        );
+      case 'accepted':
+        if (paymentStatus === 'verified') {
+          return (
+            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+              <ShieldCheck className="w-3 h-3" />
+              <span>Confirmed</span>
+            </span>
+          );
+        }
+        return (
+          <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+            <Clock className="w-3 h-3" />
+            <span>Payment Pending</span>
           </span>
         );
       case 'rejected':
@@ -567,7 +595,7 @@ const CustomerQuotes = () => {
                     <div>
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-xl font-semibold text-secondary-800">{quote.title}</h3>
-                        {getStatusBadge(quote.status, quote.customer_accepted)}
+                        {getStatusBadge(quote.status, quote.customer_accepted, quote.payment_status)}
                         {quote.status === 'sent' && !quote.customer_accepted && (
                           <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">Action Required</span>
                         )}
@@ -776,8 +804,8 @@ const CustomerQuotes = () => {
                 </div>
               </div>
 
-              {/* Designer Contact Details — only shown after the quote is accepted */}
-              {(selectedQuote.status === 'accepted' || selectedQuote.customer_accepted) && selectedQuote.designer && (
+              {/* Designer Contact Details — only shown after payment is verified */}
+              {selectedQuote.status === 'accepted' && selectedQuote.customer_accepted && selectedQuote.payment_status === 'verified' && selectedQuote.designer && (
                 <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-5">
                   <h4 className="font-semibold text-secondary-800 mb-4">Designer Contact Details</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1014,92 +1042,7 @@ const CustomerQuotes = () => {
                 </div>
               )}
 
-              {selectedQuote.status === 'accepted' || selectedQuote.customer_accepted ? (
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  <div className="flex items-center space-x-2 text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex-1 mr-3">
-                    <ThumbsUp className="w-5 h-5" />
-                    <span className="font-medium">This quote has been accepted. No further action is needed.</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSelectedQuote(null);
-                      setFeedbackText('');
-                      setPaymentReceiptFile(null);
-                    }}
-                    className="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              ) : selectedQuote.status === 'rejected' ? (
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  <div className="flex items-center space-x-2 text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex-1 mr-3">
-                    <ThumbsDown className="w-5 h-5" />
-                    <span className="font-medium">This quote has been rejected and cannot be changed.</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSelectedQuote(null);
-                      setFeedbackText('');
-                      setPaymentReceiptFile(null);
-                    }}
-                    className="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-6">
-                    <h4 className="font-semibold text-secondary-800 mb-3">Your Feedback</h4>
-                    <textarea
-                      value={feedbackText}
-                      onChange={(e) => setFeedbackText(e.target.value)}
-                      rows={4}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      placeholder="Add your comments or feedback about this quote (required for rejection)"
-                    ></textarea>
-                  </div>
-
-                  <div className="flex space-x-3 pt-4 border-t border-gray-200">
-                    <button
-                      onClick={() => {
-                        setSelectedQuote(null);
-                        setFeedbackText('');
-                        setPaymentReceiptFile(null);
-                      }}
-                      disabled={submitting}
-                      className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
-                    >
-                      Close
-                    </button>
-                    <button
-                      onClick={() => handleRejectQuote(selectedQuote.id)}
-                      disabled={submitting || !feedbackText.trim()}
-                      className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
-                    >
-                      {submitting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <ThumbsDown className="w-4 h-4" />
-                      )}
-                      <span>Reject Quote</span>
-                    </button>
-                    <button
-                      onClick={() => handleAcceptQuote(selectedQuote.id)}
-                      disabled={submitting}
-                      className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
-                    >
-                      {submitting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <ThumbsUp className="w-4 h-4" />
-                      )}
-                      <span>Accept Quote</span>
-                    </button>
-                  </div>
-                </>
-              )}
+              <QuoteActionsPanel quote={selectedQuote} onRefresh={fetchQuotes} />
             </div>
           </div>
         </div>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart3, Users, Calendar, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Eye, MessageSquare, Award, Target, Activity, FileText, X, XCircle, BarChart as BarChartIcon, PieChart as PieChartIcon, LineChart as LineChartIcon, ArrowLeft, Filter, Search, CreditCard as Edit, Trash2, Send, Plus, ThumbsDown, Download, Mail, Phone } from 'lucide-react';
+import { BarChart3, Users, Calendar, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Eye, MessageSquare, Award, Target, Activity, FileText, X, XCircle, BarChart as BarChartIcon, PieChart as PieChartIcon, LineChart as LineChartIcon, ArrowLeft, Filter, Search, CreditCard as Edit, Trash2, Send, Plus, ThumbsDown, Download, Mail, Phone, Edit3, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useDesignerProfile } from '../hooks/useDesignerProfile';
 import { supabase } from '../lib/supabase';
 import { downloadFileFromStorage } from '../utils/downloadFile';
+import QuoteMessagingPanel from '../components/QuoteMessagingPanel';
 
 interface Quote {
   id: string;
@@ -57,6 +58,9 @@ const DesignerQuotes = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [showMessages, setShowMessages] = useState(false);
+  const [changeRequests, setChangeRequests] = useState<Record<string, any[]>>({});
+  const [unreadMessages, setUnreadMessages] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!designerLoading && designer) {
@@ -109,6 +113,36 @@ const DesignerQuotes = () => {
       if (error) throw error;
       
       setQuotes(data || []);
+
+      // Fetch change requests and unread message counts for these quotes
+      const quoteIds = (data || []).map((q: any) => q.id);
+      if (quoteIds.length > 0) {
+        const { data: crData } = await supabase
+          .from('quote_change_requests')
+          .select('*')
+          .in('quote_id', quoteIds)
+          .order('created_at', { ascending: false });
+
+        const crMap: Record<string, any[]> = {};
+        (crData || []).forEach((cr: any) => {
+          if (!crMap[cr.quote_id]) crMap[cr.quote_id] = [];
+          crMap[cr.quote_id].push(cr);
+        });
+        setChangeRequests(crMap);
+
+        const { data: msgData } = await supabase
+          .from('quote_messages')
+          .select('quote_id')
+          .in('quote_id', quoteIds)
+          .eq('sender_role', 'customer')
+          .eq('read_by_designer', false);
+
+        const msgMap: Record<string, number> = {};
+        (msgData || []).forEach((m: any) => {
+          msgMap[m.quote_id] = (msgMap[m.quote_id] || 0) + 1;
+        });
+        setUnreadMessages(msgMap);
+      }
     } catch (error: any) {
       console.error('Error fetching quotes:', error);
       setError(error.message || 'Failed to load quotes');
@@ -197,6 +231,11 @@ const DesignerQuotes = () => {
         return <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium">Draft</span>;
       case 'sent':
         return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">Sent</span>;
+      case 'changes_requested':
+        return <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+          <Edit3 className="w-3 h-3" />
+          <span>Changes Requested</span>
+        </span>;
       case 'accepted':
         return <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
           <CheckCircle className="w-3 h-3" />
@@ -411,6 +450,27 @@ const DesignerQuotes = () => {
                     </div>
                   )}
 
+                  {/* Change Request indicator */}
+                  {changeRequests[quote.id] && changeRequests[quote.id].some((cr: any) => cr.status === 'pending') && (
+                    <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+                      <div className="flex items-center space-x-2 text-amber-800 mb-1">
+                        <Edit3 className="w-4 h-4 flex-shrink-0" />
+                        <span className="font-medium">Customer Requested Changes</span>
+                      </div>
+                      <p className="text-xs text-amber-700">
+                        {changeRequests[quote.id].find((cr: any) => cr.status === 'pending')?.change_options?.join(', ') || 'View details'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Unread messages indicator */}
+                  {unreadMessages[quote.id] > 0 && (
+                    <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-2 text-sm text-blue-700 flex items-center space-x-2">
+                      <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                      <span>{unreadMessages[quote.id]} unread message{unreadMessages[quote.id] > 1 ? 's' : ''} from customer</span>
+                    </div>
+                  )}
+
                   <div className="flex space-x-2">
                     <button
                       onClick={async () => {
@@ -424,6 +484,22 @@ const DesignerQuotes = () => {
                       className={`flex-1 ${quote.customer_accepted ? 'bg-green-500 hover:bg-green-600' : 'bg-primary-500 hover:bg-primary-600'} text-white py-2 px-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-1`}
                     >
                       <span>{quote.customer_accepted ? 'View Confirmed' : 'View'}</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setSelectedQuote(quote);
+                        setShowMessages(true);
+                      }}
+                      className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-3 rounded-lg font-medium transition-colors relative"
+                      title="Messages"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      {unreadMessages[quote.id] > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                          {unreadMessages[quote.id]}
+                        </span>
+                      )}
                     </button>
                     
                     {quote.status === 'draft' && (
@@ -500,6 +576,47 @@ const DesignerQuotes = () => {
             </div>
           </div>
         </div>
+
+        {/* Change Request Details */}
+        {changeRequests[selectedQuote.id] && changeRequests[selectedQuote.id].filter((cr: any) => cr.status === 'pending').length > 0 && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-5">
+            <h4 className="font-semibold text-amber-800 mb-3 flex items-center space-x-2">
+              <Edit3 className="w-5 h-5" />
+              <span>Customer Change Request</span>
+            </h4>
+            {changeRequests[selectedQuote.id].filter((cr: any) => cr.status === 'pending').map((cr: any) => (
+              <div key={cr.id} className="space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-1">Requested Changes:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {cr.change_options?.map((opt: string) => (
+                      <span key={opt} className="bg-amber-100 text-amber-800 px-2 py-1 rounded-md text-xs">
+                        {opt.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {cr.target_budget && (
+                  <p className="text-sm text-gray-700"><span className="font-medium">Target Budget:</span> ₹{cr.target_budget.toLocaleString('en-IN')}</p>
+                )}
+                {cr.additional_instructions && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-600 mb-1">Instructions:</p>
+                    <p className="text-sm text-gray-700 bg-white rounded-lg p-3 border border-amber-100">{cr.additional_instructions}</p>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">Revision round {cr.revision_round} of 3</p>
+                <button
+                  onClick={() => navigate(`/generate-quote/${selectedQuote.project_id}?revise=${selectedQuote.id}`)}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  <span>Submit Revised Quotation</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {selectedQuote.status === 'accepted' && selectedQuote.project && (
           <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-5">
@@ -627,6 +744,15 @@ const DesignerQuotes = () => {
     </div>
   </div>
 )}
+
+      {/* Designer Messaging Panel */}
+      {showMessages && selectedQuote && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-hidden">
+            <QuoteMessagingPanel quoteId={selectedQuote.id} role="designer" onClose={() => { setShowMessages(false); setSelectedQuote(null); fetchQuotes(); }} />
+          </div>
+        </div>
+      )}
 
     </div>
   );

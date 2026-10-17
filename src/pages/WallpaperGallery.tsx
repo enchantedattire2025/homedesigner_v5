@@ -125,10 +125,11 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
             aria-label={dotIdx === 0 ? 'Show wallpaper design' : 'Show wallpaper on wall'}
             aria-current={currentIndex === dotIdx}
             onClick={() => goToSlide(dotIdx)}
-            className={`flex h-4 items-center justify-center rounded-full transition-all duration-300 ${
+            className={`h-2.5 rounded-full transition-all duration-300 
+            ${
               currentIndex === dotIdx
-                ? 'w-4 bg-white shadow-sm'
-                : 'w-1.5 bg-white/60 hover:bg-white/90 hover:scale-125'
+                ? 'w-2.5 bg-white shadow-sm'
+                : 'w-1.5 bg-white/60 hover:bg-white/90'
             }`}
           />
         ))}

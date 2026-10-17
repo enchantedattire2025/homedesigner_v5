@@ -48,7 +48,7 @@ const SharePhotoForm = () => {
       return;
     }
     if (!designer) {
-      navigate('/gallery');
+      navigate('/social-wall');
       return;
     }
      if (!formData.location && designer.location) {
@@ -179,7 +179,7 @@ const SharePhotoForm = () => {
         materials: []
       });
       setTimeout(() => {
-        navigate('/gallery');
+        navigate('/social-wall');
       }, 2000);
     } catch (error: any) {
       console.error('Error sharing photo:', error);
@@ -223,7 +223,7 @@ const SharePhotoForm = () => {
           <button onClick={() => navigate('/register-designer')} className="btn-primary">
             Register as Designer
           </button>
-          <button onClick={() => navigate('/gallery')} className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-medium hover:bg-gray-300 transition-colors mt-4">
+          <button onClick={() => navigate('/social-wall')} className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-medium hover:bg-gray-300 transition-colors mt-4">
             Back to Gallery
           </button>
         </div>
@@ -237,7 +237,7 @@ const SharePhotoForm = () => {
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="text-center mb-8">
             <button
-              onClick={() => navigate('/gallery')}
+              onClick={() => navigate('/social-wall')}
               className="inline-flex items-center text-primary-600 hover:text-primary-700 mb-4"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />

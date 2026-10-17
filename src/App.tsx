@@ -4,6 +4,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
   useNavigate,
   useLocation
 } from 'react-router-dom';
@@ -309,8 +310,13 @@ const [subscriptionManagementLoading, setSubscriptionManagementLoading] = useSta
             />
 
             <Route
-              path="/gallery"
+              path="/social-wall"
               element={<Gallery />}
+            />
+
+            <Route
+              path="/gallery"
+              element={<Navigate to="/social-wall" replace />}
             />
 
             <Route

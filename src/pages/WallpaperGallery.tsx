@@ -34,7 +34,7 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
   const [countdown, setCountdown] = useState<number | null>(null);
   const [imgErrors, setImgErrors] = useState<Set<number>>(new Set());
   const touchStartX = useRef<number | null>(null);
-  const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  
 
   const clearCountdown = useCallback(() => {
     if (countdownTimer.current) {

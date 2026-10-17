@@ -111,31 +111,31 @@ const WallpaperCard: React.FC<WallpaperCardProps> = ({ wallpaper, user, onOrder 
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         {hasMultiple && (
-          <>
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
-              <span className="rounded-full border border-white/20 bg-slate-950/65 px-3 py-1 text-[11px] font-semibold tracking-wide text-white shadow-md backdrop-blur-md">
-                {currentIndex === 0 ? 'Design' : 'On Wall'}
-              </span>
-                    <div className="flex items-center gap-1 rounded-full bg-black/25 px-2 py-1 backdrop-blur-sm">
-                {images.map((_, dotIdx) => (
-                  <button
-                    key={dotIdx}
-                    type="button"
-                    aria-label={dotIdx === 0 ? 'Show wallpaper design' : 'Show wallpaper on wall'}
-                    aria-current={currentIndex === dotIdx}
-                    onClick={() => goToSlide(dotIdx)}
-                    className={`flex h-4 items-center justify-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black ${
-                      currentIndex === dotIdx
-                        ? 'w-4 bg-white shadow-sm'
-                        : 'w-1.5 bg-white/60 hover:bg-white/90 hover:scale-125'
-                    }`}
-                  />
-                ))}
-              </div>
-              </div>
-            </div>
-          </>
-        )}
+  <>
+    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
+      <span className="rounded-full border border-white/20 bg-slate-950/65 px-3 py-1 text-[11px] font-semibold tracking-wide text-white shadow-md backdrop-blur-md">
+        {currentIndex === 0 ? 'Design' : 'On Wall'}
+      </span>
+
+      <div className="flex items-center gap-1 rounded-full bg-black/25 px-2 py-1 backdrop-blur-sm">
+        {images.map((_, dotIdx) => (
+          <button
+            key={dotIdx}
+            type="button"
+            aria-label={dotIdx === 0 ? 'Show wallpaper design' : 'Show wallpaper on wall'}
+            aria-current={currentIndex === dotIdx}
+            onClick={() => goToSlide(dotIdx)}
+            className={`flex h-4 items-center justify-center rounded-full transition-all duration-300 ${
+              currentIndex === dotIdx
+                ? 'w-4 bg-white shadow-sm'
+                : 'w-1.5 bg-white/60 hover:bg-white/90 hover:scale-125'
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  </>
+)}
 
         <div className="absolute top-3 right-3">
           <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-800 rounded-full">
